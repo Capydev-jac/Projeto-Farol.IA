@@ -17,7 +17,7 @@ O **Farol.IA** é uma solução em nuvem composta por:
 **Instituição**: Faculdade de Tecnologia Professor Francisco de Moura – FATEC Jacareí  
 **Curso**: 5º DSM – Desenvolvimento de Software Multiplataforma  
 **Cliente/Público-alvo**: Secretarias de Educação e Plataformas de EdTech  
-**Focal Point**: Professor da disciplina de Laboratório de Desenvolvimento Web  
+**Focal Point**: Leandro Toss Hoffmann  
 **Kick-off**: 06/10/2026  
 
 ---
