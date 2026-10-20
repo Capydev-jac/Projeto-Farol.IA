@@ -26,7 +26,7 @@ O **Farol.IA** é uma solução em nuvem composta por:
 
 | Sprints | Início | Fim | Relatório |
 |---------|--------|-----|-----------|
-| 1ª sprint | 06/10/2026 | 20/10/2026 (19h30) | <a href="#">Ver Relatório</a> |
+| 1ª sprint | 06/10/2026 | 20/10/2026 (19h30) | <a href="#">Em breve</a> |
 | 2ª sprint | 21/10/2026 | 10/11/2026 (19h30) | <a href="#">Em breve</a> |
 | 3ª sprint | 11/11/2026 | 24/11/2026 (19h30) | <a href="#">Em breve</a> |
 
