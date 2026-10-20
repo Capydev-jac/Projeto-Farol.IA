@@ -56,6 +56,7 @@ O **Farol.IA** é uma solução em nuvem composta por:
 | ---- | ----- | ------------ |
 | Gabriel Camargo | Scrum Master | <a href="https://github.com/AllanDreemur"><img src="https://skillicons.dev/icons?i=github"></a> |
 | João Victor | Product Owner | <a href="https://github.com/joaoestreano"><img src="https://skillicons.dev/icons?i=github"></a> |
+| Breno de Luca | Desenvolvedor | <a href="https://github.com/brn-lc"><img src="https://skillicons.dev/icons?i=github"></a> |
 | Gabriel Frois | Desenvolvedor | <a href="https://github.com/GabrielFrois"><img src="https://skillicons.dev/icons?i=github"></a> |
 | Felipe Ribeiro | Desenvolvedor | <a href="https://github.com/feliperib286"><img src="https://skillicons.dev/icons?i=github"></a> |
 | Pedro Prado | Desenvolvedor | <a href="https://github.com/PeedroPrado"><img src="https://skillicons.dev/icons?i=github"></a> |
