@@ -1,0 +1,22 @@
+{
+  "name": "farol-ia-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "init-db": "node scripts/init-db.js",
+    "import-enem": "node scripts/import-enem.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.10",
+    "express": "^4.21.2",
+    "pg": "^8.23.1",
+    "pg-copy-streams": "^7.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
