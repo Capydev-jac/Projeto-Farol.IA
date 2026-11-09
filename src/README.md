@@ -5,13 +5,6 @@
 - Git
 - Arquivo CSV do ENEM 2023
 
-## 2. Clonar o projeto
-
-```bash
-git clone https://github.com/GabrielFrois/abp-prototipo.git
-cd abp-prototipo
-```
-
 ## 3. Configurar o backend
 
 Entre na pasta do backend e instale as dependências:
