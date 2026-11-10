@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js",
-    "init-db": "node scripts/init-db.js",
-    "import-enem": "node scripts/import-enem.js"
+    "dev": "tsx watch server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "init-db": "tsx scripts/init-db.ts",
+    "import-enem": "tsx scripts/import-enem.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -17,6 +18,12 @@
     "pg-copy-streams": "^7.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "@types/pg-copy-streams": "^1.2.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }
