@@ -1,220 +1,137 @@
-
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from '../Icon.jsx'
-import { downloadCSV } from '../utils.js'
+import { ENEM_BASE, MT_ALERT, SCHOOLS, applyFilters, getDetail } from '../data.js'
+import { downloadCSV, avg, pct } from '../utils.js'
 import { useStore } from '../store.jsx'
+import MoreFilters, { FILTER_LABELS } from '../Filters.jsx'
 
-const formatar = valor =>
-  Number(valor || 0).toLocaleString('pt-BR')
-
-const nota = valor =>
-  valor == null ? '—' : Number(valor).toLocaleString('pt-BR', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1
-  })
-
-const AREAS = [
-  { key: 'media_cn', name: 'Natureza' },
-  { key: 'media_ch', name: 'Humanas' },
-  { key: 'media_lc', name: 'Linguagens' },
-  { key: 'media_mt', name: 'Matemática' }
-]
-
-function BarChart({ data }) {
-  const W = 600, H = 190, L = 40, B = 24, T = 10
-  const min = 0, max = 1000
-  const y = v => T + (H - T - B) *
-    (1 - Math.max(min, Math.min(max, v)) / max)
-  const slot = (W - L) / data.length
-
-  return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="chart"
-      role="img"
-      aria-label="Médias reais das notas do ENEM por área"
-    >
-      {[0, 250, 500, 750, 1000].map(t => (
-        <g key={t}>
-          <line
-            x1={L} x2={W}
-            y1={y(t)} y2={y(t)}
-            className="grid-line"
-          />
-          <text
-            x={L - 8}
-            y={y(t) + 4}
-            textAnchor="end"
-            className="axis"
-          >
-            {t}
-          </text>
-        </g>
-      ))}
-
-      {data.map((a, i) => {
-        const cx = L + slot * i + slot / 2
-        const value = Number(a.value)
-
-        return (
-          <g key={a.key}>
-            {a.value != null && (
-              <>
-                <rect
-                  x={cx - 15}
-                  y={y(value)}
-                  width="30"
-                  height={y(0) - y(value)}
-                  rx="3"
-                  className="bar-current"
-                />
-                <text
-                  x={cx}
-                  y={Math.max(12, y(value) - 5)}
-                  textAnchor="middle"
-                  className="bar-label"
-                >
-                  {Math.round(value)}
-                </text>
-              </>
-            )}
-            <text
-              x={cx}
-              y={H - 6}
-              textAnchor="middle"
-              className="axis"
-            >
-              {a.name}
-            </text>
-          </g>
-        )
-      })}
-    </svg>
-  )
-}
+// Média nacional do ENEM (referência ilustrativa, média das 4 áreas, sem redação).
+// Mesma conta da página Turmas, para os números baterem entre as telas.
+const NATIONAL = Object.values(ENEM_BASE).reduce((a, b) => a + b, 0) / Object.values(ENEM_BASE).length
+// Diferença (em pts) que ocupa metade da barra de comparação.
+const DIFF_MAX = 100
+// Percentual de risco elevado que enche a barra por completo (escala fixa, igual para todas as turmas).
+const RISK_BAR_MAX = 50
 
 function Donut({ data }) {
   const total = data.reduce((s, d) => s + d.value, 0)
-  const r = 62
-  const c = 2 * Math.PI * r
+  const r = 62, c = 2 * Math.PI * r
   let acc = 0
-
   return (
-    <svg
-      viewBox="0 0 160 160"
-      className="donut"
-      role="img"
-      aria-label="Distribuição por tipo de escola"
-    >
-      <circle
-        cx="80" cy="80" r={r}
-        fill="none"
-        stroke="#eef2f4"
-        strokeWidth="18"
-      />
-
-      {total > 0 && data.map(d => {
-        const len = d.value / total * c
+    <svg viewBox="0 0 160 160" className="donut" role="img" aria-label="Distribuição de risco">
+      <circle cx="80" cy="80" r={r} fill="none" stroke="#eef2f4" strokeWidth="18" />
+      {total > 0 && data.map((d) => {
+        const len = (d.value / total) * c
         const el = (
-          <circle
-            key={d.label}
-            cx="80" cy="80" r={r}
-            fill="none"
-            stroke={d.color}
-            strokeWidth="18"
-            strokeDasharray={`${Math.max(0, len - 2)} ${c - len + 2}`}
-            strokeDashoffset={-acc}
-            transform="rotate(-90 80 80)"
-          />
+          <circle key={d.label} cx="80" cy="80" r={r} fill="none" stroke={d.color} strokeWidth="18"
+            strokeDasharray={`${Math.max(0, len - 2)} ${c - len + 2}`} strokeDashoffset={-acc}
+            transform="rotate(-90 80 80)" />
         )
         acc += len
         return el
       })}
-
-      <text
-        x="80" y="82"
-        textAnchor="middle"
-        className="donut-total"
-      >
-        {formatar(total)}
-      </text>
-      <text
-        x="80" y="98"
-        textAnchor="middle"
-        className="axis"
-      >
-        inscrições
-      </text>
+      <text x="80" y="82" textAnchor="middle" className="donut-total">{total.toLocaleString('pt-BR')}</text>
+      <text x="80" y="98" textAnchor="middle" className="axis">estudantes</text>
     </svg>
   )
 }
 
+// Barra centrada na média nacional: cresce para a direita (acima) ou para a esquerda (abaixo).
+function DiffCell({ diff, enem }) {
+  const w = Math.min(50, (Math.abs(diff) / DIFF_MAX) * 50)
+  const up = diff >= 0
+  const label = diff === 0 ? 'Na média' : `${Math.abs(diff)} pts ${up ? 'acima' : 'abaixo'}`
+  return (
+    <span className="diff" title={`Média estimada da turma: ${enem} pts · média nacional: ${Math.round(NATIONAL)} pts (ref. ilustrativa)`}>
+      <b className={up ? 'up' : 'down'}>{label}</b>
+      <span className="diff-track" aria-hidden="true">
+        <i className={up ? 'pos' : 'neg'} style={up ? { left: '50%', width: w + '%' } : { right: '50%', width: w + '%' }} />
+      </span>
+    </span>
+  )
+}
+
 export default function Overview() {
-  const {
-    enemResumo,
-    enemEstatisticas,
-    loading,
-    error
-  } = useStore()
+  const { students, turmas } = useStore()
+  const [f, setF] = useState({ school: '', turma: '', renda: '', esc: '', infra: '' })
+  const [more, setMore] = useState(false)
+  const set = (k, v) => setF((o) => ({ ...o, [k]: v }))
 
-  const total = Number(
-    enemResumo?.total_participantes || 0
-  )
+  const list = useMemo(() => applyFilters(students, f), [students, f])
+  const total = list.length
+  const count = (r) => list.filter((s) => s.risk === r).length
+  const high = count('Elevado')
+  const risk = [
+    { label: 'Elevado', value: high, color: '#c0504d' },
+    { label: 'Atenção', value: count('Atenção'), color: '#d4a54a' },
+    { label: 'Menor', value: count('Menor'), color: '#0d7c78' },
+  ]
 
-  const areas = useMemo(() =>
-    AREAS.map(a => ({
-      ...a,
-      value: enemResumo?.[a.key] ?? null
-    })),
-    [enemResumo]
-  )
+  const isLowFreq = (s) => s.freq < 75
+  const isNoPlan = (s) => s.risk === 'Elevado' && !s.hasPlan
+  const isMatNeed = (s) => getDetail(s).areas.MT < MT_ALERT
+  const lowFreq = list.filter(isLowFreq).length
+  const noPlan = list.filter(isNoPlan).length
+  const matNeed = list.filter(isMatNeed).length
 
-  const escolas = useMemo(() => {
-    const cores = [
-      '#0d7c78',
-      '#d4a54a',
-      '#c0504d',
-      '#7695ae',
-      '#a6a6a6'
-    ]
-
-    // Códigos de TP_ESCOLA do ENEM:
-    // 1 = não respondeu, 2 = pública, 3 = privada.
-    const nomes = {
-      '1': 'Não respondeu',
-      '2': 'Pública',
-      '3': 'Privada'
+  const turmaRows = turmas.map((t) => {
+    const ts = list.filter((s) => s.turma === t.nome)
+    const h = ts.filter((s) => s.risk === 'Elevado').length
+    const mean = avg(ts, (s) => s.enem)
+    return {
+      name: t.nome.replace('ª ', 'ª Série '), nome: t.nome, students: ts.length,
+      enem: Math.round(mean), diff: Math.round(mean - NATIONAL), high: h, pct: pct(h, ts.length),
     }
+  }).filter((t) => t.students > 0)
 
-    return (enemEstatisticas?.tipo_escola || [])
-      .map((item, i) => ({
-        label: nomes[item.categoria] ||
-          `Código ${item.categoria ?? 'não informado'}`,
-        value: Number(item.total),
-        color: cores[i % cores.length]
-      }))
-  }, [enemEstatisticas])
-
-  const estados = enemEstatisticas?.estados || []
-
-  const exportSummary = () => {
-    downloadCSV('resumo-enem-farol-ia.csv', [
-      ['Indicador', 'Valor'],
-      ['Inscrições ENEM 2023', total],
-      ['Média Ciências da Natureza', nota(enemResumo?.media_cn)],
-      ['Média Ciências Humanas', nota(enemResumo?.media_ch)],
-      ['Média Linguagens', nota(enemResumo?.media_lc)],
-      ['Média Matemática', nota(enemResumo?.media_mt)],
-      ['Média Redação', nota(enemResumo?.media_redacao)],
-      [],
-      ['Tipo de escola', 'Inscrições'],
-      ...escolas.map(e => [e.label, e.value]),
-      [],
-      ['UF da prova', 'Inscrições'],
-      ...estados.map(e => [e.categoria, e.total])
-    ])
+  // Turma com mais casos de cada sinal (só faz sentido comparar com 2 ou mais turmas).
+  const topTurma = (pred) => {
+    if (turmaRows.length < 2) return null
+    const c = {}
+    list.filter(pred).forEach((s) => { c[s.turma] = (c[s.turma] || 0) + 1 })
+    const top = Object.entries(c).sort((a, b) => b[1] - a[1])[0]
+    return top ? { turma: top[0], n: top[1] } : null
   }
+
+  const turmaQS = f.turma ? '&turma=' + encodeURIComponent(f.turma) : ''
+  const actions = [
+    {
+      key: 'plano', tone: 'tone-red', n: noPlan, what: 'em risco elevado, sem plano de apoio',
+      hint: 'Ainda não há um plano definido para acompanhá-los.',
+      cta: 'Definir planos', to: `/estudantes?tab=semplano${turmaQS}`, where: topTurma(isNoPlan),
+    },
+    {
+      key: 'faltas', tone: 'tone-amber', n: lowFreq, what: 'com faltas recorrentes',
+      hint: 'Frequência abaixo de 75% nas últimas 4 semanas. Vale conversar sobre o que dificulta a presença.',
+      cta: 'Ver estudantes', to: `/estudantes?freqMax=75${turmaQS}`, where: topTurma(isLowFreq),
+    },
+    {
+      key: 'mat', tone: 'tone-teal', n: matNeed, what: 'precisam de reforço em matemática',
+      hint: `Estimativa de matemática abaixo de ${MT_ALERT} pts.`,
+      cta: 'Planejar reforço', to: `/estudantes?mtMax=${MT_ALERT}${turmaQS}`, where: topTurma(isMatNeed),
+    },
+  ]
+
+  const nSchools = new Set(list.map((s) => s.school)).size
+  const chips = FILTER_LABELS(f)
+
+  const exportSummary = () =>
+    downloadCSV('resumo-farol-ia.csv', [
+      ['Indicador', 'Valor'],
+      ['Estudantes acompanhados', total],
+      ['Risco elevado', high],
+      ['Atenção', count('Atenção')],
+      ['Risco menor', count('Menor')],
+      ['Risco elevado sem plano de apoio', noPlan],
+      ['Estudantes com frequência < 75%', lowFreq],
+      [`Estudantes com matemática estimada < ${MT_ALERT} pts`, matNeed],
+      [],
+      ['Média nacional do ENEM (ilustrativa)', Math.round(NATIONAL)],
+      [],
+      ['Turma', 'Estudantes', 'Diferença vs média nacional (pts)', 'Risco elevado', '% da turma'],
+      ...turmaRows.map((t) => [t.nome, t.students, t.diff, t.high, t.pct + '%']),
+    ])
 
   return (
     <main className="page">
@@ -222,66 +139,43 @@ export default function Overview() {
         <div>
           <div className="eyebrow">PANORAMA DA REDE</div>
           <h1>Enxergar cedo. Apoiar melhor.</h1>
-          <p className="sub">
-            Análise dos dados reais do ENEM 2023,
-            armazenados no PostgreSQL.
-          </p>
+          <p className="sub">Sinais de aprendizagem e permanência para orientar o cuidado com cada estudante.</p>
         </div>
-        <button
-          className="btn"
-          type="button"
-          onClick={exportSummary}
-          disabled={!enemResumo}
-        >
-          <Icon name="download" /> Exportar resumo
-        </button>
+        <button className="btn" type="button" onClick={exportSummary}><Icon name="download" /> Exportar resumo</button>
       </div>
 
       <div className="filters-row">
-        <select aria-label="Período" defaultValue="2023">
-          <option value="2023">ENEM · 2023</option>
+        <select aria-label="Período"><option>2º semestre de 2025</option></select>
+        <select value={f.school} onChange={(e) => set('school', e.target.value)} aria-label="Escola">
+          <option value="">Toda a rede escolar</option>
+          {SCHOOLS.map((s) => <option key={s}>{s}</option>)}
         </select>
-        <select aria-label="Base de dados" defaultValue="enem">
-          <option value="enem">Microdados ENEM</option>
-        </select>
-        <select aria-label="Abrangência" defaultValue="brasil">
-          <option value="brasil">Brasil</option>
-        </select>
-        <span className="muted right small">
-          Fonte: PostgreSQL · ENEM 2023
-        </span>
+        <select aria-label="Série"><option>3ª série · Ensino médio</option></select>
+        <button className={'btn' + (more ? ' on' : '')} type="button" onClick={() => setMore((v) => !v)}><Icon name="filter" /> Mais filtros</button>
+        <span className="muted right small">Atualização ilustrativa · 18 nov. 2025</span>
       </div>
-
-      {error && (
-        <div className="notice">
-          <Icon name="info" /> Erro ao consultar API: {error}
+      {more && <MoreFilters f={f} set={set} />}
+      {chips.length > 0 && (
+        <div className="chips-row">
+          <div>
+            {chips.map(([k, label]) => (
+              <span className="chip" key={k}>{label} <button type="button" aria-label={`Remover ${label}`} onClick={() => set(k, '')}>×</button></span>
+            ))}
+            <button className="link plain" type="button" onClick={() => setF({ school: '', turma: '', renda: '', esc: '', infra: '' })}>Limpar filtros</button>
+          </div>
         </div>
       )}
 
       <div className="grid-2">
         <section className="card kpi">
-          <div className="kpi-top">
-            Inscrições do ENEM <Icon name="users" />
-          </div>
-          <div className="kpi-value">
-            {loading ? '...' : formatar(total)}
-          </div>
-          <div className="muted small">
-            Registros importados no PostgreSQL
-          </div>
+          <div className="kpi-top">Estudantes acompanhados <Icon name="users" /></div>
+          <div className="kpi-value">{total.toLocaleString('pt-BR')}</div>
+          <div className="muted small">{nSchools} {nSchools === 1 ? 'escola' : 'escolas'} · {turmaRows.length} {turmaRows.length === 1 ? 'turma' : 'turmas'}</div>
         </section>
-
         <section className="card kpi">
-          <div className="kpi-top">
-            Média da redação
-            <Icon name="book" />
-          </div>
-          <div className="kpi-value">
-            {loading ? '...' : nota(enemResumo?.media_redacao)}
-          </div>
-          <div className="muted small">
-            Média das notas disponíveis · ENEM 2023
-          </div>
+          <div className="kpi-top">Em risco elevado <span className="red"><Icon name="flag" /></span></div>
+          <div className="kpi-value">{high}</div>
+          <div className="muted small">{pct(high, total)}% da seleção · prioridade de escuta</div>
         </section>
       </div>
 
@@ -289,174 +183,74 @@ export default function Overview() {
         <section className="card">
           <div className="card-head">
             <div>
-              <h3>Desempenho no ENEM</h3>
-              <p className="muted small">
-                Médias reais por área · escala de pontos
-              </p>
+              <h3>Um olhar para cada turma</h3>
+              <p className="muted small">3ª série · comparado à média nacional do ENEM ({Math.round(NATIONAL)} pts)</p>
             </div>
-            <Link className="link" to="/modelo">
-              Sobre o modelo ↗
-            </Link>
+            <Link className="link" to="/turmas">Ver turmas ↗</Link>
           </div>
-
-          <div className="legend small muted">
-            <span>
-              <i className="sw teal" /> Média observada no ENEM
-            </span>
-          </div>
-
-          {enemResumo ? (
-            <BarChart data={areas} />
-          ) : (
-            <p className="empty">
-              {loading
-                ? 'Carregando dados do ENEM...'
-                : 'Dados não disponíveis.'}
-            </p>
-          )}
-
-          <p className="muted small">
-            Notas observadas na base. Não são previsões
-            de Machine Learning.
-          </p>
+          <table className="mini-table">
+            <thead><tr><th>Turma</th><th>Estudantes</th><th>vs. média nacional do ENEM</th><th>Risco elevado</th></tr></thead>
+            <tbody>
+              {turmaRows.map((t) => (
+                <tr key={t.nome}>
+                  <td><Icon name="class" /> <Link className="turma-link" to={`/estudantes?turma=${encodeURIComponent(t.nome)}`}>{t.name}</Link></td>
+                  <td>{t.students}</td>
+                  <td><DiffCell diff={t.diff} enem={t.enem} /></td>
+                  <td>
+                    <span className="red">{t.high}</span>
+                    <span className="bar"><span style={{ width: Math.min(100, (t.pct / RISK_BAR_MAX) * 100) + '%' }} /></span>
+                    <span className="muted small">{t.pct}%</span>
+                  </td>
+                </tr>
+              ))}
+              {turmaRows.length === 0 && <tr><td colSpan="4" className="empty">Sem turmas na seleção.</td></tr>}
+            </tbody>
+          </table>
+          <p className="muted small">A barra mostra a distância da média da turma até a média nacional (referência ilustrativa, 4 áreas, sem redação). Compare contextos e necessidades, não rankings.</p>
         </section>
-
         <section className="card">
-          <div className="card-head">
-            <div>
-              <h3>Distribuição por tipo de escola</h3>
-              <p className="muted small">
-                Classificação informada nos microdados
-              </p>
-            </div>
-          </div>
-
+          <div className="card-head"><div><h3>Distribuição de risco</h3><p className="muted small">Prioridade de acompanhamento na rede</p></div></div>
           <div className="donut-wrap">
-            <Donut data={escolas} />
+            <Donut data={risk} />
             <ul className="risk-list">
-              {escolas.map(e => (
-                <li key={e.label}>
-                  <i
-                    className="dot"
-                    style={{ background: e.color }}
-                  />
-                  <span>
-                    {e.label}
-                    <b>{formatar(e.value)}</b>
-                  </span>
-                  <em>
-                    {total
-                      ? (e.value / total * 100).toFixed(1)
-                      : 0}%
-                  </em>
+              {risk.map((r) => (
+                <li key={r.label}>
+                  <i className="dot" style={{ background: r.color }} />
+                  <span>{r.label}<b>{r.value}</b></span>
+                  <em>{pct(r.value, total)}%</em>
                 </li>
               ))}
             </ul>
           </div>
-
-          <p className="muted small">
-            Distribuição dos registros conforme a variável
-            TP_ESCOLA.
-          </p>
+          <p className="muted small">Risco de baixo desempenho ou descontinuidade escolar. Faixas ilustrativas para priorizar apoio, não classificar pessoas.</p>
         </section>
       </div>
 
-      <div className="grid-bottom">
-        <section className="card">
-          <h3>Onde agir agora</h3>
-          <p className="muted small">
-            Indicadores de acompanhamento
-          </p>
-
-          <div className="action">
-            <div className="action-title amber">
-              <Icon name="calendar" />
-              Frequência escolar indisponível
-            </div>
-            <p className="muted small">
-              A base do ENEM não contém frequência escolar
-              individual. Este indicador será integrado
-              quando houver dados apropriados.
-            </p>
-          </div>
-
-          <div className="action">
-            <div className="action-title">
-              <Icon name="book" />
-              Previsões ainda não disponíveis
-            </div>
-            <p className="muted small">
-              A classificação de risco e as estimativas
-              individuais serão implementadas na etapa
-              de Machine Learning.
-            </p>
-            <Link className="link" to="/modelo">
-              Conhecer a próxima etapa →
-            </Link>
-          </div>
-        </section>
-
-        <section className="card">
-          <div className="card-head">
-            <div>
-              <h3>Participantes por estado</h3>
-              <p className="muted small">
-                Local de realização da prova
-              </p>
-            </div>
-            <Link className="link" to="/estudantes">
-              Ver participantes ↗
-            </Link>
-          </div>
-
-          <table className="mini-table">
-            <thead>
-              <tr>
-                <th>UF</th>
-                <th>Inscrições</th>
-                <th>% da base</th>
-              </tr>
-            </thead>
-            <tbody>
-              {estados.slice(0, 8).map(e => (
-                <tr key={e.categoria}>
-                  <td>{e.categoria || 'Não informada'}</td>
-                  <td>{formatar(e.total)}</td>
-                  <td>
-                    <b>
-                      {total
-                        ? (Number(e.total) / total * 100).toFixed(1)
-                        : 0}%
-                    </b>
-                  </td>
-                </tr>
-              ))}
-              {!estados.length && (
-                <tr>
-                  <td colSpan="3" className="empty">
-                    Aguardando dados.
-                  </td>
-                </tr>
+      <section className="card">
+        <h3>Onde agir agora</h3>
+        <p className="muted small">Em ordem de prioridade. Cada botão abre a lista de estudantes já filtrada.</p>
+        <div className="act-grid">
+          {actions.map((a, i) => (
+            <article className={'act-card ' + a.tone} key={a.key}>
+              <div className="act-top">Prioridade {i + 1}</div>
+              <div className="act-num">{a.n}<small>{a.n === 1 ? 'estudante' : 'estudantes'}</small></div>
+              <div className="act-label">{a.what}</div>
+              {a.n > 0 ? (
+                <>
+                  <p className="muted small">{a.hint}</p>
+                  {a.where && <p className="small act-where">Mais casos: <b>{a.where.turma}</b> ({a.where.n})</p>}
+                  <Link className="btn sm act-cta" to={a.to}>{a.cta}</Link>
+                </>
+              ) : (
+                <p className="small act-ok">Nenhum caso na seleção.</p>
               )}
-            </tbody>
-          </table>
-          <p className="muted small">
-            Distribuição pela UF de realização do ENEM.
-          </p>
-        </section>
-      </div>
+            </article>
+          ))}
+        </div>
+      </section>
 
-      <div className="notice">
-        <Icon name="info" />
-        Os indicadores apresentados são estatísticas
-        observadas no ENEM 2023. O sistema ainda não
-        produz classificações de risco ou previsões.
-      </div>
-
-      <footer className="foot">
-        <span>Dados reais do ENEM 2023 · PostgreSQL</span>
-        <span>Farol.IA · FATEC Jacareí</span>
-      </footer>
+      <div className="notice"><Icon name="info" /> Predições são estimativas de apoio à decisão, não destinos individuais. As faixas expressam incerteza ilustrativa; a equipe escolar deve contextualizar cada sinal antes de intervir.</div>
+      <footer className="foot"><span>Dados sintéticos. Métricas, pessoas e resultados do modelo são ilustrativos.</span><span>Farol.IA · FATEC Jacareí</span></footer>
     </main>
   )
 }
