@@ -95,13 +95,6 @@ function Sidebar() {
 
       <div className="sidebar-spacer" />
 
-      <div className="fatec-card">
-        <strong>FATEC Jacareí</strong>
-        <span>Equipe CapyDev</span>
-        <span>DSM · 5º semestre</span>
-        <a href="#/modelo">Protótipo acadêmico ↗</a>
-      </div>
-
       <button className="help" type="button">
         <Icon name="help" />
         Central de ajuda
