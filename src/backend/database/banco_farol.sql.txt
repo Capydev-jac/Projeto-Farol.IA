@@ -1,0 +1,146 @@
+b-- 1. Limpeza inicial (CASCADE apaga as dependências automaticamente)
+DROP TABLE IF EXISTS alunos CASCADE;
+DROP TABLE IF EXISTS turmas CASCADE;
+DROP TABLE IF EXISTS usuarios CASCADE;
+
+-- =======================================================================
+-- TABELA 1: USUÁRIOS (Administradores e Professores)
+-- =======================================================================
+CREATE TABLE usuarios (
+    id SERIAL PRIMARY KEY,
+    nome VARCHAR(150) NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    senha_hash VARCHAR(255) NOT NULL,
+    papel VARCHAR(20) DEFAULT 'professor' CHECK (papel IN ('admin', 'professor')),
+    status_ativo BOOLEAN DEFAULT TRUE,
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =======================================================================
+-- TABELA 2: TURMAS (Organização escolar)
+-- =======================================================================
+CREATE TABLE turmas (
+    id SERIAL PRIMARY KEY,
+    identificador VARCHAR(50) NOT NULL, -- Ex: '3º A', 'Sala 1'
+    turno VARCHAR(20) CHECK (turno IN ('Manhã', 'Tarde', 'Noite')),
+    professor_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (identificador, professor_id) -- Um professor não pode ter duas turmas com o mesmo nome
+);
+
+-- =======================================================================
+-- TABELA 3: ALUNOS E PERFIL PREDITIVO (Vinculados a uma Turma)
+-- =======================================================================
+CREATE TABLE alunos (
+    id SERIAL PRIMARY KEY,
+    numero_matricula VARCHAR(50) UNIQUE NOT NULL,
+    nome VARCHAR(150) NOT NULL,
+    
+    -- Chave estrangeira: a qual turma este aluno pertence
+    turma_id INTEGER NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
+    
+    -- 1. Demografia
+    tp_faixa_etaria INTEGER CHECK (tp_faixa_etaria >= 1 AND tp_faixa_etaria <= 20),
+    tp_sexo CHAR(1) CHECK (tp_sexo IN ('M', 'F')),
+    
+    -- 2. Escolaridade e Ocupação
+    q001_escolaridade_pai VARCHAR(1) CHECK (q001_escolaridade_pai IN ('A','B','C','D','E','F','G','H')),
+    q002_escolaridade_mae VARCHAR(1) CHECK (q002_escolaridade_mae IN ('A','B','C','D','E','F','G','H')),
+    q003_ocupacao_pai VARCHAR(1) CHECK (q003_ocupacao_pai IN ('A','B','C','D','E','F')),
+    q004_ocupacao_mae VARCHAR(1) CHECK (q004_ocupacao_mae IN ('A','B','C','D','E','F')),
+    
+    -- 3. Tamanho da Família e Renda
+    q005_tamanho_familia INTEGER CHECK (q005_tamanho_familia > 0 AND q005_tamanho_familia <= 25),
+    q006_renda_familiar VARCHAR(1) CHECK (q006_renda_familiar IN ('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q')),
+    
+    -- 4. Infraestrutura Domiciliar
+    q009_acesso_geladeira VARCHAR(1) CHECK (q009_acesso_geladeira IN ('A','B','C','D','E')),
+    q014_banheiros VARCHAR(1) CHECK (q014_banheiros IN ('A','B','C','D','E')),
+    q019_acesso_computador VARCHAR(1) CHECK (q019_acesso_computador IN ('A','B','C','D','E')),
+    q022_acesso_celular VARCHAR(1) CHECK (q022_acesso_celular IN ('A','B','C','D','E')),
+    
+    -- 5. Variáveis Agregadas CapyDev
+    veiculo_proprio INTEGER CHECK (veiculo_proprio IN (0, 1)), 
+    conectividade INTEGER CHECK (conectividade IN (0, 1)),
+    refrigeracao INTEGER CHECK (refrigeracao IN (0, 1)),
+    
+    -- 6. Resultados do Modelo Farol.IA
+    ia_risco_defasagem INTEGER CHECK (ia_risco_defasagem IN (0, 1)),
+    ia_probabilidade_risco DECIMAL(5,2),
+    
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- 1. Limpeza inicial (CASCADE apaga as dependências automaticamente)
+DROP TABLE IF EXISTS alunos CASCADE;
+DROP TABLE IF EXISTS turmas CASCADE;
+DROP TABLE IF EXISTS usuarios CASCADE;
+
+-- =======================================================================
+-- TABELA 1: USUÁRIOS (Administradores e Professores)
+-- =======================================================================
+CREATE TABLE usuarios (
+    id SERIAL PRIMARY KEY,
+    nome VARCHAR(150) NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    senha_hash VARCHAR(255) NOT NULL,
+    papel VARCHAR(20) DEFAULT 'professor' CHECK (papel IN ('admin', 'professor')),
+    status_ativo BOOLEAN DEFAULT TRUE,
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =======================================================================
+-- TABELA 2: TURMAS (Organização escolar)
+-- =======================================================================
+CREATE TABLE turmas (
+    id SERIAL PRIMARY KEY,
+    identificador VARCHAR(50) NOT NULL, -- Ex: '3º A', 'Sala 1'
+    turno VARCHAR(20) CHECK (turno IN ('Manhã', 'Tarde', 'Noite')),
+    professor_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (identificador, professor_id) -- Um professor não pode ter duas turmas com o mesmo nome
+);
+
+-- =======================================================================
+-- TABELA 3: ALUNOS E PERFIL PREDITIVO (Vinculados a uma Turma)
+-- =======================================================================
+CREATE TABLE alunos (
+    id SERIAL PRIMARY KEY,
+    numero_matricula VARCHAR(50) UNIQUE NOT NULL,
+    nome VARCHAR(150) NOT NULL,
+    
+    -- Chave estrangeira: a qual turma este aluno pertence
+    turma_id INTEGER NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
+    
+    -- 1. Demografia
+    tp_faixa_etaria INTEGER CHECK (tp_faixa_etaria >= 1 AND tp_faixa_etaria <= 20),
+    tp_sexo CHAR(1) CHECK (tp_sexo IN ('M', 'F')),
+    
+    -- 2. Escolaridade e Ocupação
+    q001_escolaridade_pai VARCHAR(1) CHECK (q001_escolaridade_pai IN ('A','B','C','D','E','F','G','H')),
+    q002_escolaridade_mae VARCHAR(1) CHECK (q002_escolaridade_mae IN ('A','B','C','D','E','F','G','H')),
+    q003_ocupacao_pai VARCHAR(1) CHECK (q003_ocupacao_pai IN ('A','B','C','D','E','F')),
+    q004_ocupacao_mae VARCHAR(1) CHECK (q004_ocupacao_mae IN ('A','B','C','D','E','F')),
+    
+    -- 3. Tamanho da Família e Renda
+    q005_tamanho_familia INTEGER CHECK (q005_tamanho_familia > 0 AND q005_tamanho_familia <= 25),
+    q006_renda_familiar VARCHAR(1) CHECK (q006_renda_familiar IN ('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q')),
+    
+    -- 4. Infraestrutura Domiciliar
+    q009_acesso_geladeira VARCHAR(1) CHECK (q009_acesso_geladeira IN ('A','B','C','D','E')),
+    q014_banheiros VARCHAR(1) CHECK (q014_banheiros IN ('A','B','C','D','E')),
+    q019_acesso_computador VARCHAR(1) CHECK (q019_acesso_computador IN ('A','B','C','D','E')),
+    q022_acesso_celular VARCHAR(1) CHECK (q022_acesso_celular IN ('A','B','C','D','E')),
+    
+    -- 5. Variáveis Agregadas CapyDev
+    veiculo_proprio INTEGER CHECK (veiculo_proprio IN (0, 1)), 
+    conectividade INTEGER CHECK (conectividade IN (0, 1)),
+    refrigeracao INTEGER CHECK (refrigeracao IN (0, 1)),
+    
+    -- 6. Resultados do Modelo Farol.IA
+    ia_risco_defasagem INTEGER CHECK (ia_risco_defasagem IN (0, 1)),
+    ia_probabilidade_risco DECIMAL(5,2),
+    
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
