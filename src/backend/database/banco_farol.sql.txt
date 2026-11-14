@@ -1,146 +1,146 @@
-b-- 1. Limpeza inicial (CASCADE apaga as dependências automaticamente)
-DROP TABLE IF EXISTS alunos CASCADE;
-DROP TABLE IF EXISTS turmas CASCADE;
-DROP TABLE IF EXISTS usuarios CASCADE;
+-- =======================================================================
+-- FAROL.IA - Estrutura inicial do banco PostgreSQL
+-- Modelo: ENEM 2023 - LightGBM Top 15
+-- Atenção: este script cria as tabelas; não apaga dados existentes.
+-- =======================================================================
 
 -- =======================================================================
--- TABELA 1: USUÁRIOS (Administradores e Professores)
+-- TABELA 1: USUARIOS
+-- Administradores e professores
 -- =======================================================================
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(150) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     senha_hash VARCHAR(255) NOT NULL,
-    papel VARCHAR(20) DEFAULT 'professor' CHECK (papel IN ('admin', 'professor')),
-    status_ativo BOOLEAN DEFAULT TRUE,
-    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    papel VARCHAR(20) NOT NULL DEFAULT 'professor'
+        CHECK (papel IN ('admin', 'professor')),
+    status_ativo BOOLEAN NOT NULL DEFAULT TRUE,
+    data_cadastro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- =======================================================================
--- TABELA 2: TURMAS (Organização escolar)
+-- TABELA 2: TURMAS
+-- Turmas vinculadas ao professor responsável
 -- =======================================================================
-CREATE TABLE turmas (
+CREATE TABLE IF NOT EXISTS turmas (
     id SERIAL PRIMARY KEY,
-    identificador VARCHAR(50) NOT NULL, -- Ex: '3º A', 'Sala 1'
-    turno VARCHAR(20) CHECK (turno IN ('Manhã', 'Tarde', 'Noite')),
-    professor_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (identificador, professor_id) -- Um professor não pode ter duas turmas com o mesmo nome
+    identificador VARCHAR(50) NOT NULL,
+    turno VARCHAR(20)
+        CHECK (turno IN ('Manhã', 'Tarde', 'Noite')),
+    professor_id INTEGER NOT NULL
+        REFERENCES usuarios(id) ON DELETE CASCADE,
+    data_criacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uq_turma_professor
+        UNIQUE (identificador, professor_id)
 );
 
 -- =======================================================================
--- TABELA 3: ALUNOS E PERFIL PREDITIVO (Vinculados a uma Turma)
+-- TABELA 3: ALUNOS
+-- Dados cadastrais, socioeconômicos e resultado atual da predição
+-- Categorias INEP são armazenadas como letras e codificadas no serviço TS.
 -- =======================================================================
-CREATE TABLE alunos (
-    id SERIAL PRIMARY KEY,
-    numero_matricula VARCHAR(50) UNIQUE NOT NULL,
-    nome VARCHAR(150) NOT NULL,
-    
-    -- Chave estrangeira: a qual turma este aluno pertence
-    turma_id INTEGER NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
-    
-    -- 1. Demografia
-    tp_faixa_etaria INTEGER CHECK (tp_faixa_etaria >= 1 AND tp_faixa_etaria <= 20),
-    tp_sexo CHAR(1) CHECK (tp_sexo IN ('M', 'F')),
-    
-    -- 2. Escolaridade e Ocupação
-    q001_escolaridade_pai VARCHAR(1) CHECK (q001_escolaridade_pai IN ('A','B','C','D','E','F','G','H')),
-    q002_escolaridade_mae VARCHAR(1) CHECK (q002_escolaridade_mae IN ('A','B','C','D','E','F','G','H')),
-    q003_ocupacao_pai VARCHAR(1) CHECK (q003_ocupacao_pai IN ('A','B','C','D','E','F')),
-    q004_ocupacao_mae VARCHAR(1) CHECK (q004_ocupacao_mae IN ('A','B','C','D','E','F')),
-    
-    -- 3. Tamanho da Família e Renda
-    q005_tamanho_familia INTEGER CHECK (q005_tamanho_familia > 0 AND q005_tamanho_familia <= 25),
-    q006_renda_familiar VARCHAR(1) CHECK (q006_renda_familiar IN ('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q')),
-    
-    -- 4. Infraestrutura Domiciliar
-    q009_acesso_geladeira VARCHAR(1) CHECK (q009_acesso_geladeira IN ('A','B','C','D','E')),
-    q014_banheiros VARCHAR(1) CHECK (q014_banheiros IN ('A','B','C','D','E')),
-    q019_acesso_computador VARCHAR(1) CHECK (q019_acesso_computador IN ('A','B','C','D','E')),
-    q022_acesso_celular VARCHAR(1) CHECK (q022_acesso_celular IN ('A','B','C','D','E')),
-    
-    -- 5. Variáveis Agregadas CapyDev
-    veiculo_proprio INTEGER CHECK (veiculo_proprio IN (0, 1)), 
-    conectividade INTEGER CHECK (conectividade IN (0, 1)),
-    refrigeracao INTEGER CHECK (refrigeracao IN (0, 1)),
-    
-    -- 6. Resultados do Modelo Farol.IA
-    ia_risco_defasagem INTEGER CHECK (ia_risco_defasagem IN (0, 1)),
-    ia_probabilidade_risco DECIMAL(5,2),
-    
-    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-
--- 1. Limpeza inicial (CASCADE apaga as dependências automaticamente)
-DROP TABLE IF EXISTS alunos CASCADE;
-DROP TABLE IF EXISTS turmas CASCADE;
-DROP TABLE IF EXISTS usuarios CASCADE;
-
--- =======================================================================
--- TABELA 1: USUÁRIOS (Administradores e Professores)
--- =======================================================================
-CREATE TABLE usuarios (
-    id SERIAL PRIMARY KEY,
-    nome VARCHAR(150) NOT NULL,
-    email VARCHAR(150) UNIQUE NOT NULL,
-    senha_hash VARCHAR(255) NOT NULL,
-    papel VARCHAR(20) DEFAULT 'professor' CHECK (papel IN ('admin', 'professor')),
-    status_ativo BOOLEAN DEFAULT TRUE,
-    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- =======================================================================
--- TABELA 2: TURMAS (Organização escolar)
--- =======================================================================
-CREATE TABLE turmas (
-    id SERIAL PRIMARY KEY,
-    identificador VARCHAR(50) NOT NULL, -- Ex: '3º A', 'Sala 1'
-    turno VARCHAR(20) CHECK (turno IN ('Manhã', 'Tarde', 'Noite')),
-    professor_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (identificador, professor_id) -- Um professor não pode ter duas turmas com o mesmo nome
-);
-
--- =======================================================================
--- TABELA 3: ALUNOS E PERFIL PREDITIVO (Vinculados a uma Turma)
--- =======================================================================
-CREATE TABLE alunos (
+CREATE TABLE IF NOT EXISTS alunos (
     id SERIAL PRIMARY KEY,
     numero_matricula VARCHAR(50) UNIQUE NOT NULL,
     nome VARCHAR(150) NOT NULL,
-    
-    -- Chave estrangeira: a qual turma este aluno pertence
-    turma_id INTEGER NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
-    
-    -- 1. Demografia
-    tp_faixa_etaria INTEGER CHECK (tp_faixa_etaria >= 1 AND tp_faixa_etaria <= 20),
-    tp_sexo CHAR(1) CHECK (tp_sexo IN ('M', 'F')),
-    
-    -- 2. Escolaridade e Ocupação
-    q001_escolaridade_pai VARCHAR(1) CHECK (q001_escolaridade_pai IN ('A','B','C','D','E','F','G','H')),
-    q002_escolaridade_mae VARCHAR(1) CHECK (q002_escolaridade_mae IN ('A','B','C','D','E','F','G','H')),
-    q003_ocupacao_pai VARCHAR(1) CHECK (q003_ocupacao_pai IN ('A','B','C','D','E','F')),
-    q004_ocupacao_mae VARCHAR(1) CHECK (q004_ocupacao_mae IN ('A','B','C','D','E','F')),
-    
-    -- 3. Tamanho da Família e Renda
-    q005_tamanho_familia INTEGER CHECK (q005_tamanho_familia > 0 AND q005_tamanho_familia <= 25),
-    q006_renda_familiar VARCHAR(1) CHECK (q006_renda_familiar IN ('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q')),
-    
-    -- 4. Infraestrutura Domiciliar
-    q009_acesso_geladeira VARCHAR(1) CHECK (q009_acesso_geladeira IN ('A','B','C','D','E')),
-    q014_banheiros VARCHAR(1) CHECK (q014_banheiros IN ('A','B','C','D','E')),
-    q019_acesso_computador VARCHAR(1) CHECK (q019_acesso_computador IN ('A','B','C','D','E')),
-    q022_acesso_celular VARCHAR(1) CHECK (q022_acesso_celular IN ('A','B','C','D','E')),
-    
-    -- 5. Variáveis Agregadas CapyDev
-    veiculo_proprio INTEGER CHECK (veiculo_proprio IN (0, 1)), 
-    conectividade INTEGER CHECK (conectividade IN (0, 1)),
-    refrigeracao INTEGER CHECK (refrigeracao IN (0, 1)),
-    
-    -- 6. Resultados do Modelo Farol.IA
-    ia_risco_defasagem INTEGER CHECK (ia_risco_defasagem IN (0, 1)),
-    ia_probabilidade_risco DECIMAL(5,2),
-    
-    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+    turma_id INTEGER NOT NULL
+        REFERENCES turmas(id) ON DELETE CASCADE,
+
+    -- -------------------------------------------------------------------
+    -- 1. Perfil demográfico (índices do modelo: 0 e 1)
+    -- -------------------------------------------------------------------
+    tp_faixa_etaria INTEGER
+        CHECK (tp_faixa_etaria BETWEEN 1 AND 20),
+
+    tp_sexo CHAR(1)
+        CHECK (tp_sexo IN ('M', 'F')),
+
+    -- -------------------------------------------------------------------
+    -- 2. Contexto familiar e renda (índices do modelo: 2 a 7)
+    -- -------------------------------------------------------------------
+    q001_escolaridade_pai CHAR(1)
+        CHECK (q001_escolaridade_pai IN ('A','B','C','D','E','F','G','H')),
+
+    q002_escolaridade_mae CHAR(1)
+        CHECK (q002_escolaridade_mae IN ('A','B','C','D','E','F','G','H')),
+
+    q003_ocupacao_pai CHAR(1)
+        CHECK (q003_ocupacao_pai IN ('A','B','C','D','E','F')),
+
+    q004_ocupacao_mae CHAR(1)
+        CHECK (q004_ocupacao_mae IN ('A','B','C','D','E','F')),
+
+    q005_tamanho_familia INTEGER
+        CHECK (q005_tamanho_familia BETWEEN 1 AND 20),
+
+    q006_renda_familiar CHAR(1)
+        CHECK (q006_renda_familiar IN
+            ('A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q')),
+
+    -- -------------------------------------------------------------------
+    -- 3. Infraestrutura e bens (índices do modelo: 8 a 11)
+    -- Q009 = quartos para dormir
+    -- Q014 = máquinas de lavar roupa
+    -- Q019 = televisores em cores
+    -- Q022 = telefones celulares
+    -- -------------------------------------------------------------------
+    q009_quartos CHAR(1)
+        CHECK (q009_quartos IN ('A','B','C','D','E')),
+
+    q014_maquina_lavar CHAR(1)
+        CHECK (q014_maquina_lavar IN ('A','B','C','D','E')),
+
+    q019_televisores CHAR(1)
+        CHECK (q019_televisores IN ('A','B','C','D','E')),
+
+    q022_celulares CHAR(1)
+        CHECK (q022_celulares IN ('A','B','C','D','E')),
+
+    -- -------------------------------------------------------------------
+    -- 4. Atributos consolidados (índices do modelo: 12 a 14)
+    -- Ordem intencional: veículo, refrigeração, conectividade
+    -- -------------------------------------------------------------------
+    veiculo_proprio SMALLINT
+        CHECK (veiculo_proprio IN (0, 1)),
+
+    refrigeracao SMALLINT
+        CHECK (refrigeracao IN (0, 1)),
+
+    conectividade SMALLINT
+        CHECK (conectividade IN (0, 1)),
+
+    -- -------------------------------------------------------------------
+    -- 5. Resultado atual da IA
+    -- risco_defasagem: 0 = sem risco binário; 1 = risco binário
+    -- probabilidade_risco: percentual entre 0 e 100
+    -- -------------------------------------------------------------------
+    ia_risco_defasagem SMALLINT
+        CHECK (ia_risco_defasagem IN (0, 1)),
+
+    ia_probabilidade_risco NUMERIC(5,2)
+        CHECK (ia_probabilidade_risco BETWEEN 0 AND 100),
+
+    ia_nivel_alerta VARCHAR(10)
+        CHECK (ia_nivel_alerta IN ('REGULAR', 'ATENCAO', 'CRITICO')),
+
+    ia_recomendacao TEXT,
+
+    ia_data_predicao TIMESTAMP,
+
+    ia_versao_modelo VARCHAR(50),
+
+    data_cadastro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Índices úteis para consultas por turma e situação preditiva
+CREATE INDEX IF NOT EXISTS idx_alunos_turma_id
+    ON alunos(turma_id);
+
+CREATE INDEX IF NOT EXISTS idx_alunos_nivel_alerta
+    ON alunos(ia_nivel_alerta);
+
+CREATE INDEX IF NOT EXISTS idx_alunos_risco
+    ON alunos(ia_risco_defasagem);

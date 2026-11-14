@@ -8,6 +8,7 @@ import alunosRoutes from "./routes/alunos.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import intervencoesRoutes from "./routes/intervencoes.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+import predicaoRoutes from "../backend/routes/predicao.routes.js"
 
 const app = express();
 
@@ -38,6 +39,8 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/intervencoes", intervencoesRoutes);
 
 app.use("/api/health", healthRoutes);
+
+app.use("/api/predict", predicaoRoutes)
 
 
 export default app;
