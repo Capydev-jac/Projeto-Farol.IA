@@ -1,14 +1,15 @@
-import React, { useState } from 'react'
+import React, { useState, type ChangeEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import Icon from '../Icon.jsx'
-import { getDetail, MONTHS, RENDAS, ESCOLARIDADES, INFRAS, pDef, ENEM_BASE } from '../data.js'
-import { useStore } from '../store.jsx'
-import Modal from '../Modal.jsx'
+import Icon from '../Icon'
+import { getDetail, MONTHS, RENDAS, ESCOLARIDADES, INFRAS, pDef, ENEM_BASE } from '../data'
+import { useStore } from '../store'
+import Modal from '../Modal'
+import type { Plan } from '../types'
 
-function LineChart({ values }) {
+function LineChart({ values }: { values: number[] }) {
   const W = 560, H = 190, L = 34, R = 20, T = 14, B = 26
-  const x = (i) => L + ((W - L - R) * i) / (values.length - 1)
-  const y = (v) => T + (H - T - B) * (1 - v / 10)
+  const x = (i: number) => L + ((W - L - R) * i) / (values.length - 1)
+  const y = (v: number) => T + (H - T - B) * (1 - v / 10)
   const d = values.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${y(v)}`).join(' ')
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="Trajetória de aprendizagem">
@@ -37,10 +38,16 @@ const STEPS = [
 ]
 const STATUS = ['A iniciar', 'Em andamento']
 
-function PlanModal({ plan, onSave, onClose }) {
+interface PlanModalProps {
+  plan?: Plan
+  onSave: (plan: Plan) => void
+  onClose: () => void
+}
+
+function PlanModal({ plan, onSave, onClose }: PlanModalProps) {
   const [status, setStatus] = useState(plan?.status || 'A iniciar')
   const [owners, setOwners] = useState(plan?.owners || ['', '', ''])
-  const setOwner = (i) => (e) => setOwners(owners.map((o, k) => (k === i ? e.target.value : o)))
+  const setOwner = (i: number) => (e: ChangeEvent<HTMLInputElement>) => setOwners(owners.map((o, k) => (k === i ? e.target.value : o)))
   return (
     <Modal title="Personalizar plano de acompanhamento" onClose={onClose}>
       <form className="form" onSubmit={(e) => { e.preventDefault(); onSave({ status, owners }) }}>
@@ -99,9 +106,9 @@ export default function StudentDetail() {
     )
   }
   const d = getDetail(s)
-  const fmt = (n) => String(n).replace('.', ',')
+  const fmt = (n: number | string) => String(n).replace('.', ',')
   const lastDelta = d.traj ? +(d.traj[4] - d.traj[3]).toFixed(1) : 0
-  const pos = (v) => (v / 1000) * 100
+  const pos = (v: number) => (v / 1000) * 100
   const lowFreq = s.freq < 75
   const plan = plans[s.id]
   const hasPlan = s.hasPlan

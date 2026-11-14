@@ -1,6 +1,7 @@
 // Dados 100% sintéticos e anonimizados — nenhum dado pessoal real.
+import type { AreaKey, Filters, Risk, Student } from './types'
 
-function mulberry32(seed) {
+function mulberry32(seed: number) {
   let a = seed
   return () => {
     a |= 0; a = (a + 0x6d2b79f5) | 0
@@ -10,14 +11,16 @@ function mulberry32(seed) {
   }
 }
 const rnd = mulberry32(2026)
-const between = (a, b) => a + rnd() * (b - a)
-const pick = (arr) => arr[Math.floor(rnd() * arr.length)]
+const between = (a: number, b: number) => a + rnd() * (b - a)
+const pick = <T>(arr: T[]): T => arr[Math.floor(rnd() * arr.length)]
 
 export const SCHOOLS = ['Escola Horizonte', 'Escola Ipê', 'Escola Caminhos', 'Escola Nascente']
-export const RISKS = ['Elevado', 'Atenção', 'Menor']
-export const BASE_TURMAS = []
+export const RISKS: Risk[] = ['Elevado', 'Atenção', 'Menor']
+export const BASE_TURMAS: unknown[] = []
 
-const fixed = [
+declare const TURMAS: string[]
+
+const fixed: { n: number; school: string; turma: string; freq: number; enem: number; lo: number; hi: number; risk: Risk }[] = [
   { n: 248, school: 'Escola Horizonte', turma: '3ª A', freq: 71, enem: 508, lo: 470, hi: 546, risk: 'Elevado' },
   { n: 186, school: 'Escola Ipê', turma: '3ª C', freq: 73, enem: 495, lo: 452, hi: 538, risk: 'Elevado' },
   { n: 392, school: 'Escola Caminhos', turma: '3ª B', freq: 79, enem: 521, lo: 480, hi: 562, risk: 'Elevado' },
@@ -28,18 +31,18 @@ const fixed = [
   { n: 905, school: 'Escola Nascente', turma: '3ª B', freq: 95, enem: 624, lo: 589, hi: 659, risk: 'Menor' },
 ]
 
-const fmtId = (n) => 'E-' + String(n).padStart(4, '0')
+const fmtId = (n: number) => 'E-' + String(n).padStart(4, '0')
 
-function build() {
+function build(): Omit<Student, 'renda' | 'esc' | 'infra'>[] {
   const used = new Set(fixed.map((f) => f.n))
-  const nums = []
+  const nums: number[] = []
   for (let i = 1; i <= 1248; i++) if (!used.has(i)) nums.push(i)
 
   // 1240 restantes: 246 elevado, 371 atenção, 623 menor
-  const risks = [
-    ...Array(246).fill('Elevado'),
-    ...Array(371).fill('Atenção'),
-    ...Array(623).fill('Menor'),
+  const risks: Risk[] = [
+    ...Array<Risk>(246).fill('Elevado'),
+    ...Array<Risk>(371).fill('Atenção'),
+    ...Array<Risk>(623).fill('Menor'),
   ]
   for (let i = risks.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1))
@@ -49,7 +52,7 @@ function build() {
   let lowFreq = 30 // 32 no total com frequência < 75% (2 já nos fixos)
   const rest = nums.map((n, i) => {
     const risk = risks[i]
-    let freq, enem
+    let freq: number, enem: number
     if (risk === 'Elevado') {
       if (lowFreq > 0) { freq = Math.round(between(68, 74.4)); lowFreq-- }
       else freq = Math.round(between(75, 88))
@@ -82,39 +85,39 @@ function build() {
 export const RENDAS = ['Até 1 salário mínimo', '1 a 2 salários mínimos', '2 a 5 salários mínimos', 'Mais de 5 salários mínimos']
 export const ESCOLARIDADES = ['Ensino fundamental', 'Ensino médio', 'Ensino superior']
 export const INFRAS = ['Básica', 'Intermediária', 'Completa']
-export const AREAS = [
+export const AREAS: { key: AreaKey; name: string; off: number; gain: number }[] = [
   { key: 'LC', name: 'Linguagens', off: 12, gain: 30 },
   { key: 'CH', name: 'Humanas', off: 32, gain: 27 },
   { key: 'CN', name: 'Natureza', off: -16, gain: 22 },
   { key: 'MT', name: 'Matemática', off: -28, gain: 23 },
 ]
-// Médias de referência ILUSTRATIVAS da base histórica do ENEM (RF04).
+// Médias de referência ILUSTRATIVAS da base histórica do ENEM.
 // Substituir pelas médias calculadas na base de microdados tratada (Kaggle).
-export const ENEM_BASE = { LC: 560, CH: 575, CN: 530, MT: 560 }
+export const ENEM_BASE: Record<AreaKey, number> = { LC: 560, CH: 575, CN: 530, MT: 560 }
 // Limite (pts) da estimativa de matemática que aciona o alerta de reforço.
 export const MT_ALERT = 460
 
 // Modelo ILUSTRATIVO (regra linear sobre o perfil sociológico).
-// Ponto de troca: substituir por uma chamada à API de ML treinada (RF02).
-export function predict({ renda, esc, infra }) {
+// Ponto de troca: substituir por uma chamada à API de ML treinada.
+export function predict({ renda, esc, infra }: { renda: number; esc: number; infra: number }) {
   const enem = Math.round(478 + 28 * renda + 22 * esc + 18 * infra)
   return { enem, lo: enem - 38, hi: enem + 38 }
 }
-export function classify(enem, freq) {
+export function classify(enem: number, freq: number): Risk {
   if (enem <= 530 || freq < 75) return 'Elevado'
   if (enem <= 575 || freq < 85) return 'Atenção'
   return 'Menor'
 }
 // Probabilidade ilustrativa de defasagem (logística sobre nota estimada e frequência).
-export function pDef(s) {
+export function pDef(s: { enem: number; freq: number }) {
   const z = (540 - s.enem) / 28 + (85 - s.freq) / 10
   return 1 / (1 + Math.exp(-z))
 }
 
-function enrich(list) {
+function enrich(list: Omit<Student, 'renda' | 'esc' | 'infra'>[]): Student[] {
   const r = mulberry32(77)
   const gauss = () => { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()) }
-  const lv = (q, max, sd) => Math.max(0, Math.min(max, Math.round(q * max + gauss() * sd)))
+  const lv = (q: number, max: number, sd: number) => Math.max(0, Math.min(max, Math.round(q * max + gauss() * sd)))
   return list.map((s) => {
     const q = Math.max(0, Math.min(1, (s.enem - 450) / 230))
     const x = { ...s, renda: lv(q, 3, 0.9), esc: lv(q, 2, 0.7), infra: lv(q, 2, 0.7) }
@@ -123,43 +126,45 @@ function enrich(list) {
   })
 }
 // A base começa vazia. Registros são carregados exclusivamente da API.
-export const STUDENTS = []
+export const STUDENTS: Student[] = []
 
-export function makeStudent({ id, school, turma, shift, freq, renda, esc, infra }) {
+export function makeStudent({ id, school, turma, shift, freq, renda, esc, infra }: {
+  id: string; school: string; turma: string; shift: string; freq: number; renda: number; esc: number; infra: number
+}): Student {
   const p = predict({ renda, esc, infra })
   return { id, school, turma, shift, freq, enem: p.enem, lo: p.lo, hi: p.hi,
     risk: classify(p.enem, freq), hasPlan: false, renda, esc, infra, custom: true }
 }
 
-export function applyFilters(list, f) {
+export function applyFilters(list: Student[], f: Filters) {
   const q = (f.q || '').trim().toLowerCase()
-  const eq = (v, x) => v === '' || v === undefined || +v === x
+  const eq = (v: string | number | undefined, x: number) => v === '' || v === undefined || +v === x
   return list.filter((s) =>
     (!q || s.id.toLowerCase().includes(q)) &&
     (!f.school || s.school === f.school) &&
     (!f.turma || s.turma === f.turma) &&
     (!f.risk || s.risk === f.risk) &&
     eq(f.renda, s.renda) && eq(f.esc, s.esc) && eq(f.infra, s.infra) &&
-    (!f.freqMax || s.freq < f.freqMax) &&
-    (!f.mtMax || getDetail(s).areas.MT < f.mtMax))
+    (!f.freqMax || s.freq < +f.freqMax) &&
+    (!f.mtMax || getDetail(s).areas.MT < +f.mtMax))
 }
 
-export const RISK_ORDER = { Elevado: 0, Atenção: 1, Menor: 2 }
+export const RISK_ORDER: Record<string, number> = { Elevado: 0, Atenção: 1, Menor: 2 }
 
-export function getDetail(s) {
+export function getDetail(s: Student) {
   const n = parseInt(s.id.slice(2), 10)
   const isMock = s.id === 'E-0248'
   const diag = isMock ? 5.4 : Math.max(2, Math.min(9.5, +((s.enem - 200) / 57).toFixed(1)))
   const mat = isMock ? 4.8 : +(diag - 0.6).toFixed(1)
-  const areas = isMock
+  const areas: Record<AreaKey, number> = isMock
     ? { LC: 520, CH: 540, CN: 492, MT: 480 }
     : { LC: s.enem + 12, CH: s.enem + 32, CN: s.enem - 16, MT: s.enem - 28 }
   const fresh = !!s.custom
-  const variation = fresh ? null : isMock ? -6 : ((n * 7) % 13) - 8
-  const traj = fresh ? null : isMock
+  const variation: number | null = fresh ? null : isMock ? -6 : ((n * 7) % 13) - 8
+  const traj: number[] | null = fresh ? null : isMock
     ? [6.4, 6.1, 5.8, 5.0, 5.4]
     : [diag + 0.9, diag + 0.6, diag + 0.3, diag - 0.4, diag].map((v) => +Math.max(0.5, Math.min(10, v)).toFixed(1))
   return { diag, mat, areas, variation, traj }
 }
 
-export const MONTHS = ['Jul.', 'Ago.', 'Set.', 'Out.', 'Nov.']
+export const MONTHS: string[] = ['Jul.', 'Ago.', 'Set.', 'Out.', 'Nov.']

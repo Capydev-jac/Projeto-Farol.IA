@@ -4,28 +4,57 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useState
+  useState,
+  type ReactNode
 } from 'react'
 
-import { api } from './services/api.js'
-import { parseCSV, parseLevel, norm } from './utils.js'
-import { SCHOOLS, RENDAS, ESCOLARIDADES, INFRAS } from './data.js'
+import { api } from './services/api'
+import { parseCSV, parseLevel, norm } from './utils'
+import { SCHOOLS, RENDAS, ESCOLARIDADES, INFRAS } from './data'
+import type {
+  EnemEstatisticas,
+  EnemParticipante,
+  EnemResumo,
+  NovoAluno,
+  Plan,
+  Student,
+  Turma
+} from './types'
 
-const Ctx = createContext(null)
+interface StoreValue {
+  students: Student[]
+  turmas: Turma[]
+  plans: Record<string, Plan>
+  loading: boolean
+  error: string
+  refresh: () => Promise<void>
+  addTurma: (ident: string, turno: string) => Promise<{ error?: string; turma?: string }>
+  addStudents: (inputs: NovoAluno[]) => Promise<Student[] | { error: string }>
+  importCSV: (text: string) => Promise<{ added: number; errors: string[] }>
+  setPlan: (id: string, plan: Plan) => Promise<{ ok?: boolean; error?: string }>
+  customCount: number
+  customTurmas: number
+  resetCustom?: () => void
+  enemResumo: EnemResumo | null
+  enemEstatisticas: EnemEstatisticas | null
+  enemParticipantes: EnemParticipante[]
+}
 
-export function StoreProvider({ children }) {
+const Ctx = createContext<StoreValue | null>(null)
+
+export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Estados originais do sistema
-  const [students, setStudents] = useState([])
-  const [turmas, setTurmas] = useState([])
-  const [plans, setPlans] = useState({})
+  const [students, setStudents] = useState<Student[]>([])
+  const [turmas, setTurmas] = useState<Turma[]>([])
+  const [plans, setPlans] = useState<Record<string, Plan>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   // Novos estados: dados reais do ENEM
-  const [enemResumo, setEnemResumo] = useState(null)
-  const [enemEstatisticas, setEnemEstatisticas] = useState(null)
-  const [enemParticipantes, setEnemParticipantes] = useState([])
+  const [enemResumo, setEnemResumo] = useState<EnemResumo | null>(null)
+  const [enemEstatisticas, setEnemEstatisticas] = useState<EnemEstatisticas | null>(null)
+  const [enemParticipantes, setEnemParticipantes] = useState<EnemParticipante[]>([])
 
   // Busca os dados do backend e PostgreSQL
   const refresh = useCallback(async () => {
@@ -58,7 +87,7 @@ export function StoreProvider({ children }) {
 
     } catch (e) {
       console.error('Erro ao carregar dados:', e)
-      setError(e.message)
+      setError((e as Error).message)
     } finally {
       setLoading(false)
     }
@@ -69,7 +98,7 @@ export function StoreProvider({ children }) {
   }, [refresh])
 
   // Cadastro de turmas
-  const addTurma = async (ident, turno) => {
+  const addTurma = async (ident: string, turno: string) => {
     const value = ident.trim().toUpperCase()
 
     if (!value) {
@@ -89,13 +118,13 @@ export function StoreProvider({ children }) {
 
       return { turma: turma.nome }
     } catch (e) {
-      return { error: e.message }
+      return { error: (e as Error).message }
     }
   }
 
   // Cadastro de alunos
-  const addStudents = async inputs => {
-    const created = []
+  const addStudents = async (inputs: NovoAluno[]): Promise<Student[] | { error: string }> => {
+    const created: Student[] = []
 
     try {
       for (const item of inputs) {
@@ -121,12 +150,12 @@ export function StoreProvider({ children }) {
 
       return created
     } catch (e) {
-      return { error: e.message }
+      return { error: (e as Error).message }
     }
   }
 
   // Importação CSV original do sistema
-  const importCSV = async text => {
+  const importCSV = async (text: string) => {
     const rows = parseCSV(text)
 
     if (rows.length < 2) {
@@ -137,7 +166,7 @@ export function StoreProvider({ children }) {
     }
 
     const head = rows[0].map(norm)
-    const col = name => head.findIndex(h => h.startsWith(name))
+    const col = (name: string) => head.findIndex(h => h.startsWith(name))
 
     const idx = {
       turma: col('turma'),
@@ -159,8 +188,8 @@ export function StoreProvider({ children }) {
       }
     }
 
-    const inputs = []
-    const errors = []
+    const inputs: NovoAluno[] = []
+    const errors: string[] = []
 
     rows.slice(1).forEach((r, i) => {
       const turma = turmas.find(
@@ -181,7 +210,7 @@ export function StoreProvider({ children }) {
         parseFloat(String(r[idx.freq]).replace(',', '.'))
       )
 
-      const bad = []
+      const bad: string[] = []
 
       if (!turma) bad.push('turma')
       if (!school) bad.push('escola')
@@ -196,8 +225,8 @@ export function StoreProvider({ children }) {
         )
       } else {
         inputs.push({
-          school,
-          turma: turma.nome,
+          school: school!,
+          turma: turma!.nome,
           freq,
           renda,
           esc,
@@ -210,7 +239,7 @@ export function StoreProvider({ children }) {
       ? await addStudents(inputs)
       : []
 
-    if (result?.error) {
+    if ('error' in result) {
       return {
         added: 0,
         errors: [...errors, result.error]
@@ -224,7 +253,7 @@ export function StoreProvider({ children }) {
   }
 
   // Planos de intervenção
-  const setPlan = async (id, plan) => {
+  const setPlan = async (id: string, plan: Plan) => {
     try {
       const saved = await api.salvarPlano(id, plan)
 
@@ -243,7 +272,7 @@ export function StoreProvider({ children }) {
 
       return { ok: true }
     } catch (e) {
-      return { error: e.message }
+      return { error: (e as Error).message }
     }
   }
 
@@ -276,4 +305,4 @@ export function StoreProvider({ children }) {
   )
 }
 
-export const useStore = () => useContext(Ctx)
+export const useStore = () => useContext(Ctx) as StoreValue

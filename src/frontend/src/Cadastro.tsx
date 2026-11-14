@@ -1,19 +1,20 @@
-import React, { useState } from 'react'
+import React, { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Icon from './Icon.jsx'
-import Modal from './Modal.jsx'
-import { useStore } from './store.jsx'
-import { SCHOOLS, RENDAS, ESCOLARIDADES, INFRAS, pDef } from './data.js'
-import { downloadCSV } from './utils.js'
+import Icon from './Icon'
+import Modal from './Modal'
+import { useStore } from './store'
+import { SCHOOLS, RENDAS, ESCOLARIDADES, INFRAS, pDef } from './data'
+import { downloadCSV } from './utils'
+import type { Student } from './types'
 
 const LGPD = 'Não registre nome, CPF, contatos ou qualquer dado pessoal. O estudante é identificado apenas por um código gerado automaticamente (LGPD).'
 
-function NovaTurma({ onClose }) {
+function NovaTurma({ onClose }: { onClose: () => void }) {
   const { addTurma } = useStore()
   const [ident, setIdent] = useState('')
   const [turno, setTurno] = useState('Manhã')
-  const [msg, setMsg] = useState(null)
-  const submit = async (e) => {
+  const [msg, setMsg] = useState<{ err?: string; ok?: string } | null>(null)
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const r = await addTurma(ident, turno)
     setMsg(r.error ? { err: r.error } : { ok: `Turma ${r.turma} criada.` })
@@ -40,18 +41,27 @@ function NovaTurma({ onClose }) {
   )
 }
 
-function NovoEstudante({ onClose, defaultTurma }) {
+interface FormState {
+  turma: string
+  school: string
+  renda: number | string
+  esc: number | string
+  infra: number | string
+  freq: string
+}
+
+function NovoEstudante({ onClose, defaultTurma }: { onClose: () => void; defaultTurma?: string }) {
   const { turmas, addStudents } = useStore()
   const nav = useNavigate()
-  const [f, setF] = useState({ turma: defaultTurma || turmas[0]?.nome || '', school: SCHOOLS[0], renda: 1, esc: 1, infra: 1, freq: '' })
-  const [done, setDone] = useState(null)
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
-  const submit = async (e) => {
+  const [f, setF] = useState<FormState>({ turma: defaultTurma || turmas[0]?.nome || '', school: SCHOOLS[0], renda: 1, esc: 1, infra: 1, freq: '' })
+  const [done, setDone] = useState<(Partial<Student> & { error?: string }) | null>(null)
+  const set = (k: keyof FormState) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value })
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const t = turmas.find((x) => x.nome === f.turma)
     if (!t) return setDone({ error: 'Cadastre uma turma antes de cadastrar estudantes.' })
     const result = await addStudents([{ school: f.school, turma: t.nome, shift: t.turno, freq: Math.round(+f.freq), renda: +f.renda, esc: +f.esc, infra: +f.infra }])
-    if (result?.error) setDone({ error: result.error })
+    if ('error' in result) setDone({ error: result.error })
     else setDone(result[0])
   }
   if (done) {
@@ -73,7 +83,7 @@ function NovoEstudante({ onClose, defaultTurma }) {
       </Modal>
     )
   }
-  const sel = (k, list) => (
+  const sel = (k: 'renda' | 'esc' | 'infra', list: string[]) => (
     <select value={f[k]} onChange={set(k)}>{list.map((l, i) => <option key={l} value={i}>{l}</option>)}</select>
   )
   return (
@@ -99,10 +109,10 @@ function NovoEstudante({ onClose, defaultTurma }) {
   )
 }
 
-function Importar({ onClose }) {
+function Importar({ onClose }: { onClose: () => void }) {
   const { importCSV } = useStore()
-  const [res, setRes] = useState(null)
-  const onFile = async (e) => {
+  const [res, setRes] = useState<{ added: number; errors: string[] } | null>(null)
+  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     setRes(await importCSV(await file.text()))
@@ -140,8 +150,8 @@ function Importar({ onClose }) {
   )
 }
 
-export default function CadastroActions({ defaultTurma, compact }) {
-  const [open, setOpen] = useState(null)
+export default function CadastroActions({ defaultTurma, compact }: { defaultTurma?: string; compact?: boolean }) {
+  const [open, setOpen] = useState<'turma' | 'aluno' | 'csv' | null>(null)
   const close = () => setOpen(null)
   return (
     <>

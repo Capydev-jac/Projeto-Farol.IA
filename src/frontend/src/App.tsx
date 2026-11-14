@@ -8,16 +8,16 @@ import {
   Navigate
 } from 'react-router-dom'
 
-import Overview from './pages/Overview.jsx'
-import Students from './pages/Students.jsx'
-import StudentDetail from './pages/StudentDetail.jsx'
-import { Modelo, Privacidade } from './pages/Info.jsx'
-import Turmas from './pages/Turmas.jsx'
-import Interventions from './pages/Interventions.jsx'
-import { useStore } from './store.jsx'
-import Icon from './Icon.jsx'
+import Overview from './pages/Overview'
+import Students from './pages/Students'
+import StudentDetail from './pages/StudentDetail'
+import { Modelo, Privacidade } from './pages/Info'
+import Turmas from './pages/Turmas'
+import Interventions from './pages/Interventions'
+import { useStore } from './store'
+import Icon from './Icon'
 
-const TITLES = {
+const TITLES: Record<string, string> = {
   '/': 'Visão geral',
   '/estudantes': 'Estudantes',
   '/turmas': 'Turmas',
@@ -34,7 +34,7 @@ function Sidebar() {
     enemResumo?.total_participantes ?? 0
   )
 
-  const link = ({ isActive }) =>
+  const link = ({ isActive }: { isActive: boolean }) =>
     'nav-item' + (isActive ? ' active' : '')
 
   return (

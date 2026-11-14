@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../Icon.jsx'
-import { ENEM_BASE, MT_ALERT, SCHOOLS, applyFilters, getDetail } from '../data.js'
-import { downloadCSV, avg, pct } from '../utils.js'
-import { useStore } from '../store.jsx'
-import MoreFilters, { FILTER_LABELS } from '../Filters.jsx'
+import Icon from '../Icon'
+import { ENEM_BASE, MT_ALERT, SCHOOLS, applyFilters, getDetail } from '../data'
+import { downloadCSV, avg, pct } from '../utils'
+import { useStore } from '../store'
+import MoreFilters, { FILTER_LABELS } from '../Filters'
+import type { Filters, Student } from '../types'
 
 // Média nacional do ENEM (referência ilustrativa, média das 4 áreas, sem redação).
 // Mesma conta da página Turmas, para os números baterem entre as telas.
@@ -14,7 +15,7 @@ const DIFF_MAX = 100
 // Percentual de risco elevado que enche a barra por completo (escala fixa, igual para todas as turmas).
 const RISK_BAR_MAX = 50
 
-function Donut({ data }) {
+function Donut({ data }: { data: { label: string; value: number; color: string }[] }) {
   const total = data.reduce((s, d) => s + d.value, 0)
   const r = 62, c = 2 * Math.PI * r
   let acc = 0
@@ -38,7 +39,7 @@ function Donut({ data }) {
 }
 
 // Barra centrada na média nacional: cresce para a direita (acima) ou para a esquerda (abaixo).
-function DiffCell({ diff, enem }) {
+function DiffCell({ diff, enem }: { diff: number; enem: number }) {
   const w = Math.min(50, (Math.abs(diff) / DIFF_MAX) * 50)
   const up = diff >= 0
   const label = diff === 0 ? 'Na média' : `${Math.abs(diff)} pts ${up ? 'acima' : 'abaixo'}`
@@ -54,13 +55,13 @@ function DiffCell({ diff, enem }) {
 
 export default function Overview() {
   const { students, turmas } = useStore()
-  const [f, setF] = useState({ school: '', turma: '', renda: '', esc: '', infra: '' })
+  const [f, setF] = useState<Filters>({ school: '', turma: '', renda: '', esc: '', infra: '' })
   const [more, setMore] = useState(false)
-  const set = (k, v) => setF((o) => ({ ...o, [k]: v }))
+  const set = (k: keyof Filters, v: string) => setF((o) => ({ ...o, [k]: v }))
 
   const list = useMemo(() => applyFilters(students, f), [students, f])
   const total = list.length
-  const count = (r) => list.filter((s) => s.risk === r).length
+  const count = (r: string) => list.filter((s) => s.risk === r).length
   const high = count('Elevado')
   const risk = [
     { label: 'Elevado', value: high, color: '#c0504d' },
@@ -68,9 +69,9 @@ export default function Overview() {
     { label: 'Menor', value: count('Menor'), color: '#0d7c78' },
   ]
 
-  const isLowFreq = (s) => s.freq < 75
-  const isNoPlan = (s) => s.risk === 'Elevado' && !s.hasPlan
-  const isMatNeed = (s) => getDetail(s).areas.MT < MT_ALERT
+  const isLowFreq = (s: Student) => s.freq < 75
+  const isNoPlan = (s: Student) => s.risk === 'Elevado' && !s.hasPlan
+  const isMatNeed = (s: Student) => getDetail(s).areas.MT < MT_ALERT
   const lowFreq = list.filter(isLowFreq).length
   const noPlan = list.filter(isNoPlan).length
   const matNeed = list.filter(isMatNeed).length
@@ -86,9 +87,9 @@ export default function Overview() {
   }).filter((t) => t.students > 0)
 
   // Turma com mais casos de cada sinal (só faz sentido comparar com 2 ou mais turmas).
-  const topTurma = (pred) => {
+  const topTurma = (pred: (s: Student) => boolean) => {
     if (turmaRows.length < 2) return null
-    const c = {}
+    const c: Record<string, number> = {}
     list.filter(pred).forEach((s) => { c[s.turma] = (c[s.turma] || 0) + 1 })
     const top = Object.entries(c).sort((a, b) => b[1] - a[1])[0]
     return top ? { turma: top[0], n: top[1] } : null
@@ -203,7 +204,7 @@ export default function Overview() {
                   </td>
                 </tr>
               ))}
-              {turmaRows.length === 0 && <tr><td colSpan="4" className="empty">Sem turmas na seleção.</td></tr>}
+              {turmaRows.length === 0 && <tr><td colSpan={4} className="empty">Sem turmas na seleção.</td></tr>}
             </tbody>
           </table>
           <p className="muted small">A barra mostra a distância da média da turma até a média nacional (referência ilustrativa, 4 áreas, sem redação). Compare contextos e necessidades, não rankings.</p>

@@ -1,6 +1,6 @@
 import React from 'react'
 
-const P = {
+const P: Record<string, React.ReactNode> = {
   lighthouse: <><path d="M9 21h6M10 21l1-12h2l1 12M10 9l-1-3h6l-1 3M12 3v1" /><path d="M5 7l3 1M19 7l-3 1" /></>,
   grid: <><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /></>,
   users: <><circle cx="9" cy="8" r="3.2" /><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" /><path d="M16 5.2a3 3 0 010 5.6M18 14.8c1.8.7 3 2.4 3 5.2" /></>,
@@ -33,7 +33,7 @@ const P = {
   chat: <><path d="M4 5h16v11H9l-5 4z" /></>,
 }
 
-export default function Icon({ name, size = 16 }) {
+export default function Icon({ name, size = 16 }: { name: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

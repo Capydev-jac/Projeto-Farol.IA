@@ -1,16 +1,17 @@
 
 import React, { useEffect, useState } from 'react'
-import Icon from '../Icon.jsx'
-import { useStore } from '../store.jsx'
-import { api } from '../services/api.js'
-import { downloadCSV } from '../utils.js'
+import Icon from '../Icon'
+import { useStore } from '../store'
+import { api } from '../services/api'
+import { downloadCSV } from '../utils'
+import type { EnemParticipante } from '../types'
 
 const PER_PAGE = 8
 
-const formatar = valor =>
+const formatar = (valor: unknown) =>
   Number(valor || 0).toLocaleString('pt-BR')
 
-const nota = valor => {
+const nota = (valor: string | number | null | undefined) => {
   if (valor == null || String(valor).trim() === '') {
     return '—'
   }
@@ -33,10 +34,10 @@ export default function Students() {
   } = useStore()
 
   const [page, setPage] = useState(1)
-  const [rows, setRows] = useState([])
+  const [rows, setRows] = useState<EnemParticipante[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [selected, setSelected] = useState(new Set())
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busca, setBusca] = useState('')
 
   const total = Number(
@@ -67,7 +68,7 @@ export default function Students() {
       } catch (e) {
         if (ativo) {
           setRows([])
-          setError(e.message)
+          setError((e as Error).message)
         }
       } finally {
         if (ativo) setLoading(false)
@@ -86,7 +87,7 @@ export default function Students() {
     String(p.inscricao || '').includes(busca)
   )
 
-  const toggle = id => {
+  const toggle = (id: string) => {
     setSelected(current => {
       const novo = new Set(current)
       novo.has(id) ? novo.delete(id) : novo.add(id)
@@ -150,11 +151,11 @@ export default function Students() {
     ])
   }
 
-  const tipoEscola = codigo => ({
+  const tipoEscola = (codigo: string | null) => ({
     '1': 'Não respondeu',
     '2': 'Pública',
     '3': 'Privada'
-  }[codigo] || 'Não informada')
+  } as Record<string, string>)[codigo as string] || 'Não informada'
 
   return (
     <main className="page">
@@ -345,7 +346,7 @@ export default function Students() {
 
             {!loading && filtrados.length === 0 && (
               <tr>
-                <td colSpan="8" className="empty">
+                <td colSpan={8} className="empty">
                   Nenhum registro encontrado nesta página.
                 </td>
               </tr>
@@ -353,7 +354,7 @@ export default function Students() {
 
             {loading && (
               <tr>
-                <td colSpan="8" className="empty">
+                <td colSpan={8} className="empty">
                   Carregando participantes...
                 </td>
               </tr>

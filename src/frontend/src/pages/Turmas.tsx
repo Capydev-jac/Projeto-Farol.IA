@@ -1,25 +1,26 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../Icon.jsx'
-import CadastroActions from '../Cadastro.jsx'
-import { useStore } from '../store.jsx'
-import { AREAS, ENEM_BASE, getDetail } from '../data.js'
-import { downloadCSV, avg, pct, STUDENT_HEADER, studentRow } from '../utils.js'
+import Icon from '../Icon'
+import CadastroActions from '../Cadastro'
+import { useStore } from '../store'
+import { AREAS, ENEM_BASE, getDetail } from '../data'
+import { downloadCSV, avg, pct, STUDENT_HEADER, studentRow } from '../utils'
+import type { Turma } from '../types'
 
-const slug = (t) => t.replace(/\s+/g, '').replace('ª', 'a')
+const slug = (t: string) => t.replace(/\s+/g, '').replace('ª', 'a')
 
 export default function Turmas() {
   const { students, turmas } = useStore()
   const baseAvg = Object.values(ENEM_BASE).reduce((a, b) => a + b, 0) / 4
 
-  const stats = (t) => {
+  const stats = (t: Turma) => {
     const ts = students.filter((s) => s.turma === t.nome)
     const high = ts.filter((s) => s.risk === 'Elevado')
     return { ts, high, enem: avg(ts, (s) => s.enem) }
   }
 
-  // Relatório gerencial por turma (RF05): resumo, comparativo com a base ENEM e alunos prioritários.
-  const report = (t) => {
+  // Relatório gerencial por turma: resumo, comparativo com a base ENEM e alunos prioritários.
+  const report = (t: Turma) => {
     const { ts, high, enem } = stats(t)
     const att = ts.filter((s) => s.risk === 'Atenção').length
     downloadCSV(`relatorio-turma-${slug(t.nome)}.csv`, [
@@ -38,7 +39,7 @@ export default function Turmas() {
       ...[...high].sort((a, b) => a.enem - b.enem).map(studentRow),
     ])
   }
-  const predictions = (t) => {
+  const predictions = (t: Turma | null) => {
     const ts = t ? students.filter((s) => s.turma === t.nome) : students
     downloadCSV(t ? `predicoes-turma-${slug(t.nome)}.csv` : 'predicoes-todas-as-turmas.csv', [STUDENT_HEADER, ...ts.map(studentRow)])
   }

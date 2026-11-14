@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { useStore } from '../store.jsx'
+import { useStore } from '../store'
 
 const Foot = () => (
   <footer className="foot"><span>Dados sintéticos. Métricas, pessoas e resultados do modelo são ilustrativos.</span><span>Farol.IA · FATEC Jacareí</span></footer>
@@ -60,7 +60,7 @@ export function Modelo() {
 export function Privacidade() {
   const { customCount, customTurmas, resetCustom } = useStore()
   const clear = () => {
-    if (window.confirm('Apagar as turmas, estudantes e planos cadastrados neste navegador?')) resetCustom()
+    if (window.confirm('Apagar as turmas, estudantes e planos cadastrados neste navegador?')) resetCustom!()
   }
   return (
     <main className="page doc">

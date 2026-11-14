@@ -1,12 +1,13 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { useStore } from '../store.jsx'
+import { useStore } from '../store'
+import type { Student } from '../types'
 
 const SHOW = 8
 
 export default function Interventions() {
   const { students, plans } = useStore()
-  const stat = (s) => plans[s.id]?.status || 'A iniciar'
+  const stat = (s: Student) => plans[s.id]?.status || 'A iniciar'
   const cols = [
     { title: 'Sem plano', hint: 'Risco elevado sem plano de apoio', tag: 'Elevado', list: students.filter((s) => s.risk === 'Elevado' && !s.hasPlan) },
     { title: 'A iniciar', hint: 'Plano sugerido, ainda sem início', tag: 'Atenção', list: students.filter((s) => s.hasPlan && stat(s) === 'A iniciar') },
