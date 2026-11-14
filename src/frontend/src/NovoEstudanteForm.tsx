@@ -2,13 +2,8 @@ import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Modal from './Modal'
 import { useStore } from './store'
-import {
-  api,
-  type AlunoCadastrado,
-  type CadastroAlunoPayload,
-  type PredicaoPayload,
-  type PredicaoResultado
-} from './services/api'
+import { api, ApiError, type AlunoCadastrado, type PredicaoPayload, type PredicaoResultado } from './services/api'
+import { paraCadastro, paraPredicao, type AlunoNumerico } from './alunoMapper'
 import Icon from './Icon'
 import * as O from './formOptions'
 
@@ -97,41 +92,15 @@ function Section({ n, title, children }: { n: number; title: string; children: R
   )
 }
 
-// Conversões do formulário -> contratos da API
-function montarCadastro(f: FormState): CadastroAlunoPayload {
+// Conversão do formulário -> contratos da API
+function paraAluno(f: FormState): AlunoNumerico {
   const n = (v: Num) => v as number
   return {
-    numero_matricula: f.ra.trim(),
-    nome: f.nome.trim(),
-    turma_id: f.turmaId ? Number(f.turmaId) : null,
-    tp_faixa_etaria: n(f.faixa),
-    tp_sexo: O.sexoParaLetra(n(f.sexo)),
-    q001_escolaridade_pai: O.escolaridadeParaLetra(n(f.q001)),
-    q002_escolaridade_mae: O.escolaridadeParaLetra(n(f.q002)),
-    q003_ocupacao_pai: O.ocupacaoParaLetra(n(f.q003)),
-    q004_ocupacao_mae: O.ocupacaoParaLetra(n(f.q004)),
-    q005_tamanho_familia: n(f.q005),
-    q006_renda_familiar: O.ordinalParaLetra(n(f.q006)),
-    q009_quartos: O.ordinalParaLetra(n(f.q009)),
-    q014_maquina_lavar: O.ordinalParaLetra(n(f.q014)),
-    q019_televisores: O.ordinalParaLetra(n(f.q019)),
-    q022_celulares: O.ordinalParaLetra(n(f.q022)),
-    veiculo_proprio: n(f.veiculo) as 0 | 1,
-    refrigeracao: n(f.refrig) as 0 | 1,
-    conectividade: n(f.conect) as 0 | 1
-  }
-}
-
-function montarPredicao(f: FormState): PredicaoPayload {
-  const n = (v: Num) => v as number
-  return {
-    matricula_ra: f.ra.trim(),
-    nome_aluno: f.nome.trim(),
-    TP_FAIXA_ETARIA: n(f.faixa), TP_SEXO: n(f.sexo),
-    Q001: n(f.q001), Q002: n(f.q002), Q003: n(f.q003), Q004: n(f.q004),
-    Q005: n(f.q005), Q006: n(f.q006),
-    Q009: n(f.q009), Q014: n(f.q014), Q019: n(f.q019), Q022: n(f.q022),
-    VEICULO_PROPRIO: n(f.veiculo), REFRIGERACAO: n(f.refrig), CONECTIVIDADE: n(f.conect)
+    nome: f.nome, ra: f.ra, turmaId: f.turmaId ? Number(f.turmaId) : null,
+    faixa: n(f.faixa), sexo: n(f.sexo),
+    q001: n(f.q001), q002: n(f.q002), q003: n(f.q003), q004: n(f.q004), q005: n(f.q005), q006: n(f.q006),
+    q009: n(f.q009), q014: n(f.q014), q019: n(f.q019), q022: n(f.q022),
+    veiculo: n(f.veiculo), refrig: n(f.refrig), conect: n(f.conect)
   }
 }
 
@@ -186,11 +155,16 @@ export default function NovoEstudanteForm({ onClose, defaultTurma }: {
 
     setSalvando(true)
     try {
-      const r = await api.cadastrarAluno(montarCadastro(f))
+      const dados = paraAluno(f)                               // formulário -> códigos numéricos
+      const r = await api.cadastrarAluno(paraCadastro(dados))  // letras (A, B, C…) para o banco
       setAluno(r.aluno)
-      setPredicaoPayload(montarPredicao(f))
+      setPredicaoPayload(paraPredicao(dados))                  // números para o modelo
     } catch (err) {
-      setErro((err as Error).message)
+      setErro(
+        err instanceof ApiError && err.status === 409
+          ? 'Já existe um estudante cadastrado com este RA.'
+          : (err as Error).message
+      )
     } finally {
       setSalvando(false)
     }

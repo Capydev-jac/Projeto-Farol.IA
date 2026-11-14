@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useCallback,
@@ -9,13 +8,11 @@ import React, {
 } from 'react'
 
 import { api } from './services/api'
-import { parseCSV, parseLevel, norm } from './utils'
-import { SCHOOLS, RENDAS, ESCOLARIDADES, INFRAS } from './data'
+import { norm } from './utils'
 import type {
   EnemEstatisticas,
   EnemParticipante,
   EnemResumo,
-  NovoAluno,
   Plan,
   Student,
   Turma
@@ -29,8 +26,6 @@ interface StoreValue {
   error: string
   refresh: () => Promise<void>
   addTurma: (ident: string, turno: string) => Promise<{ error?: string; turma?: string }>
-  addStudents: (inputs: NovoAluno[]) => Promise<Student[] | { error: string }>
-  importCSV: (text: string) => Promise<{ added: number; errors: string[] }>
   setPlan: (id: string, plan: Plan) => Promise<{ ok?: boolean; error?: string }>
   customCount: number
   customTurmas: number
@@ -122,136 +117,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Cadastro de alunos
-  const addStudents = async (inputs: NovoAluno[]): Promise<Student[] | { error: string }> => {
-    const created: Student[] = []
-
-    try {
-      for (const item of inputs) {
-        const turma = turmas.find(t => t.nome === item.turma)
-
-        if (!turma) {
-          throw new Error(`Turma ${item.turma} não encontrada.`)
-        }
-
-        const aluno = await api.criarAluno({
-          school: item.school,
-          turmaId: turma.id,
-          freq: Number(item.freq),
-          renda: Number(item.renda),
-          esc: Number(item.esc),
-          infra: Number(item.infra)
-        })
-
-        created.push(aluno)
-      }
-
-      setStudents(current => [...current, ...created])
-
-      return created
-    } catch (e) {
-      return { error: (e as Error).message }
-    }
-  }
-
-  // Importação CSV original do sistema
-  const importCSV = async (text: string) => {
-    const rows = parseCSV(text)
-
-    if (rows.length < 2) {
-      return {
-        added: 0,
-        errors: ['Arquivo vazio ou sem linhas de dados.']
-      }
-    }
-
-    const head = rows[0].map(norm)
-    const col = (name: string) => head.findIndex(h => h.startsWith(name))
-
-    const idx = {
-      turma: col('turma'),
-      escola: col('escola'),
-      renda: col('renda'),
-      esc: col('escolaridade'),
-      infra: col('infra'),
-      freq: col('frequencia')
-    }
-
-    const missing = Object.entries(idx)
-      .filter(([, v]) => v < 0)
-      .map(([k]) => k)
-
-    if (missing.length) {
-      return {
-        added: 0,
-        errors: [`Colunas ausentes: ${missing.join(', ')}.`]
-      }
-    }
-
-    const inputs: NovoAluno[] = []
-    const errors: string[] = []
-
-    rows.slice(1).forEach((r, i) => {
-      const turma = turmas.find(
-        t => norm(t.nome) === norm(r[idx.turma])
-      )
-
-      const school = SCHOOLS.find(
-        s =>
-          norm(s) === norm(r[idx.escola]) ||
-          norm(s) === norm('Escola ' + r[idx.escola])
-      )
-
-      const renda = parseLevel(r[idx.renda], RENDAS)
-      const esc = parseLevel(r[idx.esc], ESCOLARIDADES)
-      const infra = parseLevel(r[idx.infra], INFRAS)
-
-      const freq = Math.round(
-        parseFloat(String(r[idx.freq]).replace(',', '.'))
-      )
-
-      const bad: string[] = []
-
-      if (!turma) bad.push('turma')
-      if (!school) bad.push('escola')
-      if (renda < 0) bad.push('renda')
-      if (esc < 0) bad.push('escolaridade')
-      if (infra < 0) bad.push('infraestrutura')
-      if (!(freq >= 0 && freq <= 100)) bad.push('frequência')
-
-      if (bad.length) {
-        errors.push(
-          `Linha ${i + 2}: valor inválido em ${bad.join(', ')}.`
-        )
-      } else {
-        inputs.push({
-          school: school!,
-          turma: turma!.nome,
-          freq,
-          renda,
-          esc,
-          infra
-        })
-      }
-    })
-
-    const result = inputs.length
-      ? await addStudents(inputs)
-      : []
-
-    if ('error' in result) {
-      return {
-        added: 0,
-        errors: [...errors, result.error]
-      }
-    }
-
-    return {
-      added: result.length,
-      errors
-    }
-  }
-
   // Planos de intervenção
   const setPlan = async (id: string, plan: Plan) => {
     try {
@@ -288,8 +153,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         error,
         refresh,
         addTurma,
-        addStudents,
-        importCSV,
         setPlan,
         customCount: students.length,
         customTurmas: turmas.length,

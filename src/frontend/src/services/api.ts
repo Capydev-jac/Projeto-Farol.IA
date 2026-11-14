@@ -7,18 +7,13 @@ import type {
   Turma
 } from '../types'
 
-const API = '/api'
+// Em desenvolvimento o Vite faz proxy de /api
+const API: string = import.meta.env.VITE_API_URL ?? '/api'
 
-export interface NovoAlunoPayload {
-  school: string
-  turmaId: string
-  freq: number
-  renda: number
-  esc: number
-  infra: number
-}
 
-/** POST /api/alunos o BANCO guarda letras (A, B, C…) e sexo 'M'/'F'. */
+/* Tipos
+
+/** POST /api/alunos, o BANCO guarda letras (A, B, C…) e sexo 'M'/'F'. */
 export interface CadastroAlunoPayload {
   numero_matricula: string
   nome: string
@@ -40,7 +35,7 @@ export interface CadastroAlunoPayload {
   conectividade: 0 | 1
 }
 
-/** POST /api/predict/aluno o MODELO espera números */
+/** POST /api/predict/aluno, o MODELO espera números (ordem do dicionário). */
 export interface PredicaoPayload {
   matricula_ra: string
   nome_aluno?: string
@@ -76,18 +71,68 @@ export interface AlunoCadastrado {
   nome: string
 }
 
-async function request<T = any>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-  })
+/** Linha devolvida por GET /api/alunos (colunas do SELECT em alunos.controller.ts). */
+export interface AlunoApi {
+  id: number
+  numero_matricula: string
+  nome: string
+  turma_id: number | null
+  turma: string | null
+  turno: string | null
+  tp_faixa_etaria: number
+  tp_sexo: 'M' | 'F'
+  q001_escolaridade_pai: string
+  q002_escolaridade_mae: string
+  q003_ocupacao_pai: string
+  q004_ocupacao_mae: string
+  q005_tamanho_familia: number
+  q006_renda_familiar: string
+  q009_quartos: string
+  q014_maquina_lavar: string
+  q019_televisores: string
+  q022_celulares: string
+  veiculo_proprio: 0 | 1
+  refrigeracao: 0 | 1
+  conectividade: 0 | 1
+  // Preenchidos depois que a predição roda (null antes disso)
+  ia_risco_defasagem: boolean | number | null
+  ia_probabilidade_risco: number | null
+  ia_nivel_alerta: 'REGULAR' | 'ATENCAO' | 'CRITICO' | null
+  ia_recomendacao: string | null
+  ia_data_predicao: string | null
+  ia_versao_modelo: string | null
+  data_cadastro: string
+}
+
+/* Cliente HTTP */
+
+/** Erro de API com o status HTTP, para a tela poder tratar casos como 409 (RA duplicado). */
+export class ApiError extends Error {
+  status: number
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+async function request<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(`${API}${path}`, {
+      ...options,
+      headers: {
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...options.headers
+      }
+    })
+  } catch {
+    throw new ApiError('Não foi possível conectar ao servidor. Verifique se o backend está rodando.', 0)
+  }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
-    throw new Error(body.erro || `Erro HTTP ${response.status}`)
+    throw new ApiError(body.erro || body.mensagem || `Erro HTTP ${response.status}`, response.status)
   }
 
   if (response.status === 204) return null as T
@@ -95,22 +140,11 @@ async function request<T = any>(path: string, options: RequestInit = {}): Promis
   return response.json()
 }
 
+/* Rotas */
+
 export const api = {
-  // Rotas existentes
+  // Turmas
   turmas: () => request<Turma[]>('/turmas'),
-  alunos: () => request<{ alunos: Student[] }>('/alunos').then((r) => r.alunos),
-
-  cadastrarAluno: (dados: CadastroAlunoPayload) =>
-    request<{ sucesso: boolean; aluno: AlunoCadastrado }>('/alunos', {
-      method: 'POST',
-      body: JSON.stringify(dados)
-    }),
-
-  preverRisco: (dados: PredicaoPayload) =>
-    request<{ sucesso: boolean; resultado: PredicaoResultado }>('/predict/aluno', {
-      method: 'POST',
-      body: JSON.stringify(dados)
-    }),
 
   criarTurma: (dados: { nome: string; turno: string }) =>
     request<Turma>('/turmas', {
@@ -118,27 +152,46 @@ export const api = {
       body: JSON.stringify(dados)
     }),
 
-  criarAluno: (dados: NovoAlunoPayload) =>
-    request<Student>('/alunos', {
+  // Alunos
+
+  /** Lista crua do backend (snake_case). */
+  listarAlunos: (filtros: { turmaId?: number } = {}) => {
+    const qs = filtros.turmaId ? `?turmaId=${filtros.turmaId}` : ''
+    return request<{ sucesso: boolean; total: number; alunos: AlunoApi[] }>(`/alunos${qs}`).then((r) => r.alunos)
+  },
+
+  consultarAluno: (id: number | string) =>
+    request<{ sucesso: boolean; aluno: AlunoApi & { plan: { status: string; owners: unknown } | null } }>(
+      `/alunos/${encodeURIComponent(String(id))}`
+    ).then((r) => r.aluno),
+
+  alunos: () => api.listarAlunos().then((lista) => lista as unknown as Student[]),
+
+  cadastrarAluno: (dados: CadastroAlunoPayload) =>
+    request<{ sucesso: boolean; aluno: AlunoCadastrado }>('/alunos', {
       method: 'POST',
       body: JSON.stringify(dados)
     }),
 
+  // Predição (LightGBM)
+  preverRisco: (dados: PredicaoPayload) =>
+    request<{ sucesso: boolean; mensagem?: string; resultado: PredicaoResultado }>('/predict/aluno', {
+      method: 'POST',
+      body: JSON.stringify(dados)
+    }),
+
+  //  Intervenções
   salvarPlano: (id: string, dados: Plan) =>
     request<Plan>(`/intervencoes/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(dados)
     }),
 
-  // Novas rotas: dados reais do ENEM
-  enemResumo: () =>
-    request<EnemResumo>('/enem/resumo'),
+  // Dados reais do ENEM
+  enemResumo: () => request<EnemResumo>('/enem/resumo'),
 
-  enemEstatisticas: () =>
-    request<EnemEstatisticas>('/enem/estatisticas'),
+  enemEstatisticas: () => request<EnemEstatisticas>('/enem/estatisticas'),
 
   enemParticipantes: (pagina = 1, limite = 20) =>
-    request<EnemParticipantesPage>(
-      `/enem/participantes?pagina=${pagina}&limite=${limite}`
-    )
+    request<EnemParticipantesPage>(`/enem/participantes?pagina=${pagina}&limite=${limite}`)
 }
