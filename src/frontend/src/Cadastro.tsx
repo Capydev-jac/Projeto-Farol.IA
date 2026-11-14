@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Icon from './Icon'
 import Modal from './Modal'
 import { useStore } from './store'
-import { SCHOOLS, RENDAS, ESCOLARIDADES, INFRAS, pDef } from './data'
+import NovoEstudante from './NovoEstudanteForm'
 import { downloadCSV } from './utils'
 import type { Student } from './types'
 
@@ -41,81 +41,16 @@ function NovaTurma({ onClose }: { onClose: () => void }) {
   )
 }
 
-interface FormState {
-  turma: string
-  school: string
-  renda: number | string
-  esc: number | string
-  infra: number | string
-  freq: string
-}
-
-function NovoEstudante({ onClose, defaultTurma }: { onClose: () => void; defaultTurma?: string }) {
-  const { turmas, addStudents } = useStore()
-  const nav = useNavigate()
-  const [f, setF] = useState<FormState>({ turma: defaultTurma || turmas[0]?.nome || '', school: SCHOOLS[0], renda: 1, esc: 1, infra: 1, freq: '' })
-  const [done, setDone] = useState<(Partial<Student> & { error?: string }) | null>(null)
-  const set = (k: keyof FormState) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value })
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const t = turmas.find((x) => x.nome === f.turma)
-    if (!t) return setDone({ error: 'Cadastre uma turma antes de cadastrar estudantes.' })
-    const result = await addStudents([{ school: f.school, turma: t.nome, shift: t.turno, freq: Math.round(+f.freq), renda: +f.renda, esc: +f.esc, infra: +f.infra }])
-    if ('error' in result) setDone({ error: result.error })
-    else setDone(result[0])
-  }
-  if (done) {
-    if (done.error) return <Modal title="Não foi possível cadastrar" onClose={onClose}><div className="form"><p className="form-msg err">{done.error}</p><div className="form-actions"><button className="btn" onClick={onClose}>Fechar</button></div></div></Modal>
-    return (
-      <Modal title="Estudante cadastrado" onClose={onClose}>
-        <div className="form">
-          <p><b>{done.id}</b> · {done.turma} · {done.school}</p>
-          <div className="result-grid">
-            <div><small className="muted">ENEM estimado</small><b>—</b><small className="muted">Predição ainda não disponível</small></div>
-            <div><small className="muted">Prob. de defasagem</small><b>—</b><small className="muted">Modelo em desenvolvimento</small></div>
-            <div><small className="muted">Risco</small><span className="tag Atenção">Pendente</span></div>
-          </div>
-          <div className="form-actions">
-            <button type="button" className="btn" onClick={() => { setDone(null); setF({ ...f, freq: '' }) }}>Cadastrar outro</button>
-            <button type="button" className="btn teal" onClick={() => { onClose(); nav(`/estudantes/${done.id}`) }}>Ver estudante</button>
-          </div>
-        </div>
-      </Modal>
-    )
-  }
-  const sel = (k: 'renda' | 'esc' | 'infra', list: string[]) => (
-    <select value={f[k]} onChange={set(k)}>{list.map((l, i) => <option key={l} value={i}>{l}</option>)}</select>
-  )
-  return (
-    <Modal title="Cadastrar estudante" onClose={onClose}>
-      <form className="form" onSubmit={submit}>
-        <p className="callout small">{LGPD}</p>
-        {turmas.length === 0 && <p className="form-msg err">Cadastre uma turma antes de cadastrar estudantes.</p>}
-        <div className="form-grid">
-          <label>Turma<select value={f.turma} onChange={set('turma')}>{turmas.map((t) => <option key={t.nome}>{t.nome}</option>)}</select></label>
-          <label>Escola<select value={f.school} onChange={set('school')}>{SCHOOLS.map((s) => <option key={s}>{s}</option>)}</select></label>
-          <label>Renda familiar{sel('renda', RENDAS)}</label>
-          <label>Escolaridade familiar{sel('esc', ESCOLARIDADES)}</label>
-          <label>Infraestrutura domiciliar{sel('infra', INFRAS)}</label>
-          <label>Frequência recente (%)<input type="number" min="0" max="100" required value={f.freq} onChange={set('freq')} placeholder="0 a 100" /></label>
-        </div>
-        <p className="muted small">Infraestrutura: acesso a internet, computador e espaço de estudo em casa.</p>
-        <div className="form-actions">
-          <button type="button" className="btn" onClick={onClose}>Cancelar</button>
-          <button type="submit" className="btn teal" disabled={turmas.length === 0}>Cadastrar estudante</button>
-        </div>
-      </form>
-    </Modal>
-  )
-}
-
 function Importar({ onClose }: { onClose: () => void }) {
   const { importCSV } = useStore()
   const [res, setRes] = useState<{ added: number; errors: string[] } | null>(null)
-  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const [drag, setDrag] = useState(false)
+  const lerArquivo = async (file?: File) => {
     if (!file) return
     setRes(await importCSV(await file.text()))
+  }
+  const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    await lerArquivo(e.target.files?.[0])
     e.target.value = ''
   }
   const template = () => downloadCSV('modelo-importacao-farol-ia.csv', [
@@ -124,19 +59,42 @@ function Importar({ onClose }: { onClose: () => void }) {
     ['3ª B', 'Escola Ipê', 'Até 1 salário mínimo', 'Ensino fundamental', 'Básica', 92],
   ])
   return (
-    <Modal title="Importar estudantes em lote" onClose={onClose}>
-      <div className="form">
-        <p className="callout small">{LGPD}</p>
-        <p className="muted small">
-          Colunas: turma, escola, renda (0–3), escolaridade (0–2), infraestrutura (0–2) e frequencia (0–100).
-          Também são aceitos os rótulos por extenso. Separador “;” ou “,”.
-        </p>
-        <div className="form-actions left">
+    <Modal
+      title="Importar estudantes em lote"
+      subtitle="Envie um arquivo CSV com um estudante por linha."
+      onClose={onClose}
+      footer={
+        <>
           <button type="button" className="btn" onClick={template}><Icon name="download" /> Baixar modelo</button>
+          <div className="foot-actions"><button type="button" className="btn" onClick={onClose}>Fechar</button></div>
+        </>
+      }
+    >
+      <div className="form">
+        <p className="callout small"><Icon name="info" size={14} /><span>{LGPD}</span></p>
+
+        <div
+          className={'dropzone' + (drag ? ' drag' : '')}
+          onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => { e.preventDefault(); setDrag(false); lerArquivo(e.dataTransfer.files?.[0]) }}
+        >
+          <span className="dropzone-icon"><Icon name="upload" size={20} /></span>
+          <b>Arraste o arquivo CSV aqui</b>
+          <span className="muted small">ou selecione do seu computador · separador “;” ou “,”</span>
           <label className="btn teal file-btn"><Icon name="upload" /> Escolher arquivo CSV
             <input type="file" accept=".csv,text/csv" onChange={onFile} hidden />
           </label>
         </div>
+
+        <div>
+          <p className="muted small" style={{ marginBottom: 6 }}>Colunas esperadas (rótulos por extenso também são aceitos):</p>
+          <div className="profile-chips" style={{ marginBottom: 0 }}>
+            <span>turma</span><span>escola</span><span>renda (0–3)</span><span>escolaridade (0–2)</span>
+            <span>infraestrutura (0–2)</span><span>frequencia (0–100)</span>
+          </div>
+        </div>
+
         {res && (
           <div className={'form-msg ' + (res.errors.length ? 'err' : 'ok')}>
             <b>{res.added} estudante(s) importado(s).</b>
@@ -144,7 +102,6 @@ function Importar({ onClose }: { onClose: () => void }) {
             {res.errors.length > 5 && <div>… e mais {res.errors.length - 5} erro(s).</div>}
           </div>
         )}
-        <div className="form-actions"><button type="button" className="btn" onClick={onClose}>Fechar</button></div>
       </div>
     </Modal>
   )
