@@ -8,7 +8,7 @@ import React, {
 } from 'react'
 
 import { api } from './services/api'
-import { norm } from './utils'
+import { norm } from './lib/utils'
 import type {
   EnemEstatisticas,
   EnemParticipante,

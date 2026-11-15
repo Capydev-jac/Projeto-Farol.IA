@@ -1,9 +1,9 @@
 
 import React, { useEffect, useState } from 'react'
-import Icon from '../Icon'
+import Icon from '../components/Icon'
 import { useStore } from '../store'
 import { api } from '../services/api'
-import { downloadCSV } from '../utils'
+import { downloadCSV } from '../lib/utils'
 import type { EnemParticipante } from '../types'
 
 const PER_PAGE = 8

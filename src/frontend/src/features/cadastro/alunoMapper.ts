@@ -1,5 +1,5 @@
 // Converte um aluno em CÓDIGOS NUMÉRICOS para os dois contratos da API. Usado pelo formulário e pela importação em lote.
-import type { CadastroAlunoPayload, PredicaoPayload } from './services/api'
+import type { CadastroAlunoPayload, PredicaoPayload } from '../../services/api'
 import * as O from './formOptions'
 
 export interface AlunoNumerico {

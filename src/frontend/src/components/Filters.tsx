@@ -1,7 +1,7 @@
 import React from 'react'
-import { useStore } from './store'
-import { RENDAS, ESCOLARIDADES, INFRAS } from './data'
-import type { Filters } from './types'
+import { useStore } from '../store'
+import { RENDAS, ESCOLARIDADES, INFRAS } from '../lib/data'
+import type { Filters } from '../types'
 
 // Filtros sociológicos e de turma. `f` é o objeto de filtros; `set(chave, valor)` o atualiza.
 interface MoreFiltersProps {

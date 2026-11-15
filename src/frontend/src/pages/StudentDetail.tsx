@@ -1,9 +1,9 @@
 import React, { useState, type ChangeEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import Icon from '../Icon'
-import { getDetail, MONTHS, RENDAS, ESCOLARIDADES, INFRAS, pDef, ENEM_BASE } from '../data'
+import Icon from '../components/Icon'
+import { getDetail, MONTHS, RENDAS, ESCOLARIDADES, INFRAS, pDef, ENEM_BASE } from '../lib/data'
 import { useStore } from '../store'
-import Modal from '../Modal'
+import Modal from '../components/Modal'
 import type { Plan } from '../types'
 
 function LineChart({ values }: { values: number[] }) {

@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../Icon'
-import { ENEM_BASE, MT_ALERT, SCHOOLS, applyFilters, getDetail } from '../data'
-import { downloadCSV, avg, pct } from '../utils'
+import Icon from '../components/Icon'
+import { ENEM_BASE, MT_ALERT, SCHOOLS, applyFilters, getDetail } from '../lib/data'
+import { downloadCSV, avg, pct } from '../lib/utils'
 import { useStore } from '../store'
-import MoreFilters, { FILTER_LABELS } from '../Filters'
+import MoreFilters, { FILTER_LABELS } from '../components/Filters'
 import type { Filters, Student } from '../types'
 
 // Média nacional do ENEM (referência ilustrativa, média das 4 áreas, sem redação).

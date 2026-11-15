@@ -1,5 +1,5 @@
 // Dados 100% sintéticos e anonimizados — nenhum dado pessoal real.
-import type { AreaKey, Filters, Risk, Student } from './types'
+import type { AreaKey, Filters, Risk, Student } from '../types'
 
 function mulberry32(seed: number) {
   let a = seed

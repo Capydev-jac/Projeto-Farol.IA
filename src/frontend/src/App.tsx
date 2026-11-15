@@ -15,7 +15,7 @@ import { Modelo, Privacidade } from './pages/Info'
 import Turmas from './pages/Turmas'
 import Interventions from './pages/Interventions'
 import { useStore } from './store'
-import Icon from './Icon'
+import Icon from './components/Icon'
 
 const TITLES: Record<string, string> = {
   '/': 'Visão geral',

@@ -1,5 +1,5 @@
 // Leitura e validação do CSV de importação em lote
-import { parseCSV, norm } from './utils'
+import { parseCSV, norm } from '../../lib/utils'
 import type { AlunoNumerico } from './alunoMapper'
 
 interface Coluna {

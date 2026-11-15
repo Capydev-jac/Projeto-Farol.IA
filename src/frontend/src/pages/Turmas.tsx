@@ -1,10 +1,10 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import Icon from '../Icon'
-import CadastroActions from '../Cadastro'
+import Icon from '../components/Icon'
+import CadastroActions from '../features/cadastro/Cadastro'
 import { useStore } from '../store'
-import { AREAS, ENEM_BASE, getDetail } from '../data'
-import { downloadCSV, avg, pct, STUDENT_HEADER, studentRow } from '../utils'
+import { AREAS, ENEM_BASE, getDetail } from '../lib/data'
+import { downloadCSV, avg, pct, STUDENT_HEADER, studentRow } from '../lib/utils'
 import type { Turma } from '../types'
 
 const slug = (t: string) => t.replace(/\s+/g, '').replace('ª', 'a')

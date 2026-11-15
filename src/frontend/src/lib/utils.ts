@@ -1,5 +1,5 @@
 import { RENDAS, ESCOLARIDADES, INFRAS, pDef } from './data'
-import type { Student } from './types'
+import type { Student } from '../types'
 
 type Cell = string | number | boolean | null | undefined
 
