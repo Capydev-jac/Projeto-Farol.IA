@@ -68,7 +68,7 @@ async function importarEnem(): Promise<void> {
     await client.query("BEGIN");
 
     await client.query(`
-      CREATE TABLE IF NOT EXISTS data_enem_2023 (
+      CREATE TABLE IF NOT EXISTS dados_enem_2023 (
         ${definicoes}
       )
     `);
@@ -76,7 +76,7 @@ async function importarEnem(): Promise<void> {
     const resultadoColunas = await client.query(`
       SELECT column_name
       FROM information_schema.columns
-      WHERE table_name = 'data_enem_2023'
+      WHERE table_name = 'dados_enem_2023'
       ORDER BY ordinal_position
     `);
 
@@ -91,14 +91,14 @@ async function importarEnem(): Promise<void> {
       )
     ) {
       throw new Error(
-        "A estrutura da tabela data_enem_2023 não corresponde ao CSV."
+        "A estrutura da tabela dados_enem_2023 não corresponde ao CSV."
       );
     }
 
-    await client.query("TRUNCATE TABLE data_enem_2023");
+    await client.query("TRUNCATE TABLE dados_enem_2023");
 
     const comandoCopy = `
-      COPY data_enem_2023
+      COPY dados_enem_2023
       FROM STDIN
       WITH (
         FORMAT CSV,
@@ -118,7 +118,7 @@ async function importarEnem(): Promise<void> {
     await client.query("COMMIT");
 
     const resultado = await client.query(
-      "SELECT COUNT(*) AS total FROM data_enem_2023"
+      "SELECT COUNT(*) AS total FROM dados_enem_2023"
     );
 
     console.log(

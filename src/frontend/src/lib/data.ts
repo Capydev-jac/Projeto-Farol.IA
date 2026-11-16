@@ -151,20 +151,51 @@ export function applyFilters(list: Student[], f: Filters) {
 
 export const RISK_ORDER: Record<string, number> = { Elevado: 0, Atenção: 1, Menor: 2 }
 
+
 export function getDetail(s: Student) {
-  const n = parseInt(s.id.slice(2), 10)
-  const isMock = s.id === 'E-0248'
-  const diag = isMock ? 5.4 : Math.max(2, Math.min(9.5, +((s.enem - 200) / 57).toFixed(1)))
-  const mat = isMock ? 4.8 : +(diag - 0.6).toFixed(1)
-  const areas: Record<AreaKey, number> = isMock
-    ? { LC: 520, CH: 540, CN: 492, MT: 480 }
-    : { LC: s.enem + 12, CH: s.enem + 32, CN: s.enem - 16, MT: s.enem - 28 }
-  const fresh = !!s.custom
-  const variation: number | null = fresh ? null : isMock ? -6 : ((n * 7) % 13) - 8
-  const traj: number[] | null = fresh ? null : isMock
-    ? [6.4, 6.1, 5.8, 5.0, 5.4]
-    : [diag + 0.9, diag + 0.6, diag + 0.3, diag - 0.4, diag].map((v) => +Math.max(0.5, Math.min(10, v)).toFixed(1))
-  return { diag, mat, areas, variation, traj }
+  const possuiNota =
+    Number.isFinite(s.enem) && s.enem > 0
+
+  if (!possuiNota) {
+    return {
+      diag: 0,
+      mat: 0,
+      areas: {
+        LC: 0,
+        CH: 0,
+        CN: 0,
+        MT: 0
+      } as Record<AreaKey, number>,
+      variation: null as number | null,
+      traj: null as number[] | null
+    }
+  }
+
+  const diag = Math.max(
+    2,
+    Math.min(
+      9.5,
+      +((s.enem - 200) / 57).toFixed(1)
+    )
+  )
+
+  const mat = +(diag - 0.6).toFixed(1)
+
+  const areas: Record<AreaKey, number> = {
+    LC: s.enem + 12,
+    CH: s.enem + 32,
+    CN: s.enem - 16,
+    MT: s.enem - 28
+  }
+
+  return {
+    diag,
+    mat,
+    areas,
+    variation: null as number | null,
+    traj: null as number[] | null
+  }
 }
+
 
 export const MONTHS: string[] = ['Jul.', 'Ago.', 'Set.', 'Out.', 'Nov.']

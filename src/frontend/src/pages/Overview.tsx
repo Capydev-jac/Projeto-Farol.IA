@@ -69,9 +69,14 @@ export default function Overview() {
     { label: 'Menor', value: count('Menor'), color: '#0d7c78' },
   ]
 
-  const isLowFreq = (s: Student) => s.freq < 75
-  const isNoPlan = (s: Student) => s.risk === 'Elevado' && !s.hasPlan
-  const isMatNeed = (s: Student) => getDetail(s).areas.MT < MT_ALERT
+  const isLowFreq = (s: Student) =>
+  s.freq > 0 && s.freq < 75
+
+  const isNoPlan = (s: Student) =>
+    s.risk === 'Elevado' && !s.hasPlan
+
+  const isMatNeed = (s: Student) =>
+    s.enem > 0 && getDetail(s).areas.MT < MT_ALERT
   const lowFreq = list.filter(isLowFreq).length
   const noPlan = list.filter(isNoPlan).length
   const matNeed = list.filter(isMatNeed).length

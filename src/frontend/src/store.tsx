@@ -9,6 +9,7 @@ import React, {
 
 import { api, type AlunoApi } from './services/api'
 import { norm } from './lib/utils'
+import { alunoApiParaStudent } from './lib/alunoAdapter'
 import type {
   EnemEstatisticas,
   EnemParticipante,
@@ -75,10 +76,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       // Dados dos alunos cadastrados
       if (alunosResult.status === 'fulfilled') {
-        setAlunosCadastrados(alunosResult.value)
-        setStudents(alunosResult.value as unknown as Student[])
+        const alunos = alunosResult.value
+
+        setAlunosCadastrados(alunos)
+
+        const estudantesConvertidos = alunos.map(
+          alunoApiParaStudent
+        )
+
+        setStudents(estudantesConvertidos)
+
+        console.log(
+          'Alunos carregados do backend:',
+          estudantesConvertidos.length
+        )
       } else {
-        console.error('Erro ao listar alunos:', alunosResult.reason)
+        console.error(
+          'Erro ao listar alunos:',
+          alunosResult.reason
+        )
+
+        setError('Não foi possível carregar os alunos.')
       }
 
       // Turmas
