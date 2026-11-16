@@ -11,6 +11,7 @@ import {
 import Overview from './pages/Overview'
 import Students from './pages/Students'
 import StudentDetail from './pages/StudentDetail'
+import CadastroAlunos from './pages/CadastroAlunos'
 import { Modelo, Privacidade } from './pages/Info'
 import Turmas from './pages/Turmas'
 import Interventions from './pages/Interventions'
@@ -19,7 +20,9 @@ import Icon from './components/Icon'
 
 const TITLES: Record<string, string> = {
   '/': 'Visão geral',
-  '/estudantes': 'Estudantes',
+  '/cadastro': 'Cadastro de alunos',
+  '/cadastro-alunos': 'Cadastro de alunos',
+  '/estudantes': 'Estudantes (ENEM 2023)',
   '/turmas': 'Turmas',
   '/intervencoes': 'Intervenções',
   '/modelo': 'Sobre o modelo',
@@ -27,8 +30,8 @@ const TITLES: Record<string, string> = {
 }
 
 function Sidebar() {
-  // Quantidade real de participantes do ENEM
-  const { enemResumo } = useStore()
+  // Quantidade real de participantes do ENEM e alunos cadastrados
+  const { enemResumo, alunosCadastrados } = useStore()
 
   const totalParticipantes = Number(
     enemResumo?.total_participantes ?? 0
@@ -60,9 +63,17 @@ function Sidebar() {
           Visão geral
         </NavLink>
 
+        <NavLink to="/cadastro" className={link}>
+          <Icon name="user" />
+          Cadastro de alunos
+          {alunosCadastrados.length > 0 && (
+            <em>{alunosCadastrados.length}</em>
+          )}
+        </NavLink>
+
         <NavLink to="/estudantes" className={link}>
           <Icon name="users" />
-          Estudantes
+          Estudantes (ENEM)
           <em>
             {totalParticipantes.toLocaleString('pt-BR')}
           </em>
@@ -158,6 +169,16 @@ export default function App() {
           <Route
             path="/"
             element={<Overview />}
+          />
+
+          <Route
+            path="/cadastro"
+            element={<CadastroAlunos />}
+          />
+
+          <Route
+            path="/cadastro-alunos"
+            element={<CadastroAlunos />}
           />
 
           <Route

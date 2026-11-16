@@ -4,7 +4,8 @@ import { Router } from "express";
 import {
     listarTurmas,
     cadastrarTurma,
-    consultarTurma
+    consultarTurma,
+    excluirTurma
 } from "../controllers/turmas.controller.js";
 
 const router = Router();
@@ -17,5 +18,8 @@ router.post("/", cadastrarTurma);
 
 // Consultar turma específica
 router.get("/:id", consultarTurma);
+
+// Excluir turma
+router.delete("/:id", excluirTurma);
 
 export default router;

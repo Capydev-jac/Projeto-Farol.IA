@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import Icon from '../components/Icon'
 import { useStore } from '../store'
 import { api } from '../services/api'
@@ -171,16 +172,22 @@ export default function Students() {
           </p>
         </div>
 
-        <button
-          className="btn"
-          type="button"
-          onClick={exportList}
-          disabled={!filtrados.length}
-        >
-          <Icon name="download" />
-          Exportar página
-          {selected.size ? ` (${selected.size} selecionados)` : ''}
-        </button>
+        <div className="actions">
+          <Link to="/cadastro" className="btn teal">
+            <Icon name="plus" />
+            Cadastro de Alunos
+          </Link>
+          <button
+            className="btn"
+            type="button"
+            onClick={exportList}
+            disabled={!filtrados.length}
+          >
+            <Icon name="download" />
+            Exportar página
+            {selected.size ? ` (${selected.size} selecionados)` : ''}
+          </button>
+        </div>
       </div>
 
       <section className="card stat-strip">

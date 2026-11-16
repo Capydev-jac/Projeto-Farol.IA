@@ -1,6 +1,4 @@
-
 import type { Request, Response } from "express";
-import { randomUUID } from "node:crypto";
 import { pool } from "../config/database.js";
 
 // ========================================
@@ -14,7 +12,11 @@ export async function listarTurmas(
     try {
         const result = await pool.query(`
             SELECT
-                t.*,
+                t.id,
+                t.identificador,
+                t.identificador AS nome,
+                t.turno,
+                t.data_criacao,
                 COUNT(a.id)::int AS total_alunos,
                 json_build_object(
                     'alunos',
@@ -23,13 +25,13 @@ export async function listarTurmas(
             FROM turmas t
             LEFT JOIN alunos a ON a.turma_id = t.id
             GROUP BY t.id
-            ORDER BY t.nome
+            ORDER BY t.identificador ASC
         `);
 
         res.json(result.rows);
 
     } catch (error) {
-        console.error(error);
+        console.error("Erro ao listar turmas:", error);
 
         res.status(500).json({
             erro: "Erro ao listar turmas."
@@ -46,30 +48,35 @@ export async function cadastrarTurma(
     res: Response
 ) {
     try {
-        const nome = String(req.body.nome || "").trim();
-        const turno = String(req.body.turno || "").trim();
+        const identificador = String(req.body.identificador || req.body.nome || "").trim();
+        const turnoBruto = String(req.body.turno || "").trim();
 
-        const escola = String(
-            req.body.escola || "Escola não informada"
-        ).trim();
-
-        if (!nome || !turno) {
+        if (!identificador || !turnoBruto) {
             res.status(400).json({
-                erro: "Informe nome e turno."
+                erro: "Informe identificador e turno da turma."
             });
+            return;
+        }
 
+        let turno: string = turnoBruto;
+        const tLower = turnoBruto.toLowerCase();
+        if (tLower === "manhã" || tLower === "manha") turno = "Manhã";
+        else if (tLower === "tarde") turno = "Tarde";
+        else if (tLower === "noite") turno = "Noite";
+        else {
+            res.status(400).json({
+                erro: "Turno inválido. Escolha entre Manhã, Tarde ou Noite."
+            });
             return;
         }
 
         const result = await pool.query(`
-            INSERT INTO turmas (id, nome, turno, escola)
-            VALUES ($1, $2, $3, $4)
-            RETURNING *
+            INSERT INTO turmas (identificador, turno)
+            VALUES ($1, $2)
+            RETURNING id, identificador, identificador AS nome, turno, data_criacao
         `, [
-            randomUUID(),
-            nome,
-            turno,
-            escola
+            identificador,
+            turno
         ]);
 
         res.status(201).json(result.rows[0]);
@@ -84,11 +91,10 @@ export async function cadastrarTurma(
             res.status(409).json({
                 erro: "Esta turma já existe."
             });
-
             return;
         }
 
-        console.error(error);
+        console.error("Erro ao cadastrar turma:", error);
 
         res.status(500).json({
             erro: "Erro ao cadastrar turma."
@@ -106,14 +112,20 @@ export async function consultarTurma(
 ) {
     try {
         const result = await pool.query(`
-            SELECT * FROM turmas WHERE id = $1
+            SELECT
+                t.id,
+                t.identificador,
+                t.identificador AS nome,
+                t.turno,
+                t.data_criacao
+            FROM turmas t
+            WHERE t.id = $1
         `, [req.params.id]);
 
         if (!result.rowCount) {
             res.status(404).json({
                 erro: "Turma não encontrada."
             });
-
             return;
         }
 
@@ -127,10 +139,43 @@ export async function consultarTurma(
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("Erro ao consultar turma:", error);
 
         res.status(500).json({
             erro: "Erro ao consultar turma."
+        });
+    }
+}
+
+// ========================================
+// EXCLUIR TURMA
+// ========================================
+
+export async function excluirTurma(
+    req: Request,
+    res: Response
+) {
+    try {
+        const result = await pool.query(`
+            DELETE FROM turmas WHERE id = $1 RETURNING id
+        `, [req.params.id]);
+
+        if (result.rowCount === 0) {
+            res.status(404).json({
+                erro: "Turma não encontrada."
+            });
+            return;
+        }
+
+        res.status(200).json({
+            sucesso: true,
+            mensagem: "Turma excluída com sucesso."
+        });
+    } catch (error) {
+        console.error("Erro ao excluir turma:", error);
+
+        res.status(500).json({
+            erro: "Erro ao excluir turma."
         });
     }
 }

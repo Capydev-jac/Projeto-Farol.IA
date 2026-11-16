@@ -5,6 +5,7 @@ import {
   listarAlunos,
   cadastrarAluno,
   consultarAluno,
+  excluirAluno,
 } from "../controllers/alunos.controller.js";
 
 const router = Router();
@@ -17,5 +18,8 @@ router.post("/", cadastrarAluno);
 
 // Consultar estudante específico
 router.get("/:id", consultarAluno);
+
+// Excluir estudante
+router.delete("/:id", excluirAluno);
 
 export default router;

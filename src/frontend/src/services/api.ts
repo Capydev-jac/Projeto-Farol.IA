@@ -173,6 +173,11 @@ export const api = {
       body: JSON.stringify(dados)
     }),
 
+  excluirAluno: (id: number | string) =>
+    request<{ sucesso: boolean; mensagem?: string }>(`/alunos/${encodeURIComponent(String(id))}`, {
+      method: 'DELETE'
+    }),
+
   // Predição (LightGBM)
   preverRisco: (dados: PredicaoPayload) =>
     request<{ sucesso: boolean; mensagem?: string; resultado: PredicaoResultado }>('/predict/aluno', {

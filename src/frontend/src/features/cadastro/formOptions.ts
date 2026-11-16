@@ -48,15 +48,25 @@ export const MORADORES: Opt[] = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
   label: n === 8 ? '8+' : String(n)
 }))
 
-// Q006: agrupado. value = letra representativa da faixa.
+// Q006: Renda familiar mensal - 17 faixas oficiais do questionário socioeconômico do ENEM (A a Q)
 export const RENDA: Opt[] = [
-  { value: 0, label: 'Nenhuma renda' },
-  { value: 1, label: 'Até 1 salário mín. (até R$ 1.320)' },
-  { value: 3, label: 'De 1 a 2 salários mín. (R$ 1.320 a R$ 2.640)' },
-  { value: 5, label: 'De 2 a 3 salários mín. (R$ 2.640 a R$ 3.960)' },
-  { value: 7, label: 'De 3 a 5 salários mín. (R$ 3.960 a R$ 6.600)' },
-  { value: 10, label: 'De 5 a 10 salários mín. (R$ 6.600 a R$ 13.200)' },
-  { value: 14, label: 'Acima de 10 salários mínimos (+ R$ 13.200)' }
+  { value: 0, label: 'A: Nenhuma renda' },
+  { value: 1, label: 'B: Até R$ 1.320,00 (Até 1 salário mínimo)' },
+  { value: 2, label: 'C: De R$ 1.320,01 até R$ 1.980,00 (1 a 1,5 salários mínimos)' },
+  { value: 3, label: 'D: De R$ 1.980,01 até R$ 2.640,00 (1,5 a 2 salários mínimos)' },
+  { value: 4, label: 'E: De R$ 2.640,01 até R$ 3.300,00 (2 a 2,5 salários mínimos)' },
+  { value: 5, label: 'F: De R$ 3.300,01 até R$ 3.960,00 (2,5 a 3 salários mínimos)' },
+  { value: 6, label: 'G: De R$ 3.960,01 até R$ 5.280,00 (3 a 4 salários mínimos)' },
+  { value: 7, label: 'H: De R$ 5.280,01 até R$ 6.600,00 (4 a 5 salários mínimos)' },
+  { value: 8, label: 'I: De R$ 6.600,01 até R$ 7.920,00 (5 a 6 salários mínimos)' },
+  { value: 9, label: 'J: De R$ 7.920,01 até R$ 9.240,00 (6 a 7 salários mínimos)' },
+  { value: 10, label: 'K: De R$ 9.240,01 até R$ 10.560,00 (7 a 8 salários mínimos)' },
+  { value: 11, label: 'L: De R$ 10.560,01 até R$ 11.880,00 (8 a 9 salários mínimos)' },
+  { value: 12, label: 'M: De R$ 11.880,01 até R$ 13.200,00 (9 a 10 salários mínimos)' },
+  { value: 13, label: 'N: De R$ 13.200,01 até R$ 15.840,00 (10 a 12 salários mínimos)' },
+  { value: 14, label: 'O: De R$ 15.840,01 até R$ 19.800,00 (12 a 15 salários mínimos)' },
+  { value: 15, label: 'P: De R$ 19.800,01 até R$ 26.400,00 (15 a 20 salários mínimos)' },
+  { value: 16, label: 'Q: Acima de R$ 26.400,00 (Mais de 20 salários mínimos)' }
 ]
 
 // Bloco C: Bens em quantidade (0..4)
@@ -93,3 +103,50 @@ export const ocupacaoParaLetra = (v: number) => (v === -1 ? 'F' : LETRAS[v])
 export const ordinalParaLetra = (v: number) => LETRAS[v]
 
 export const sexoParaLetra = (v: number): 'M' | 'F' => (v === 1 ? 'F' : 'M')
+
+// Decodificadores para exibição legível a partir das letras do banco
+export const decodificarEscolaridade = (letra: string | null | undefined): string => {
+  if (!letra) return '—'
+  const l = letra.toUpperCase()
+  if (l === 'H') return 'Não sei informar'
+  const idx = 'ABCDEFG'.indexOf(l)
+  if (idx >= 0 && ESCOLARIDADE[idx]) return ESCOLARIDADE[idx].label
+  return `Letra ${l}`
+}
+
+export const decodificarOcupacao = (letra: string | null | undefined): string => {
+  if (!letra) return '—'
+  const l = letra.toUpperCase()
+  if (l === 'F') return 'Não sei informar'
+  const idx = 'ABCDE'.indexOf(l)
+  if (idx >= 0 && OCUPACAO[idx]) return OCUPACAO[idx].label
+  return `Letra ${l}`
+}
+
+export const decodificarRenda = (letra: string | null | undefined): string => {
+  if (!letra) return '—'
+  const l = letra.toUpperCase()
+  const idx = LETRAS.indexOf(l)
+  if (idx >= 0 && RENDA[idx]) return RENDA[idx].label
+  return `Faixa ${l}`
+}
+
+export const decodificarBens = (letra: string | null | undefined): string => {
+  if (!letra) return '—'
+  const mapa: Record<string, string> = {
+    A: '0 (Não possui)',
+    B: '1',
+    C: '2',
+    D: '3',
+    E: '4 ou mais'
+  }
+  return mapa[letra.toUpperCase()] || letra
+}
+
+export const decodificarFaixaEtaria = (codigo: number | null | undefined): string => {
+  if (!codigo) return '—'
+  const encontrado = FAIXA_ETARIA.find(f => f.value === codigo)
+  if (encontrado) return encontrado.label
+  if (codigo >= 7) return `${codigo + 15} anos ou mais`
+  return `${codigo}`
+}

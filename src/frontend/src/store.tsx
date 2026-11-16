@@ -7,7 +7,7 @@ import React, {
   type ReactNode
 } from 'react'
 
-import { api } from './services/api'
+import { api, type AlunoApi } from './services/api'
 import { norm } from './lib/utils'
 import type {
   EnemEstatisticas,
@@ -20,6 +20,7 @@ import type {
 
 interface StoreValue {
   students: Student[]
+  alunosCadastrados: AlunoApi[]
   turmas: Turma[]
   plans: Record<string, Plan>
   loading: boolean
@@ -39,7 +40,8 @@ const Ctx = createContext<StoreValue | null>(null)
 
 export function StoreProvider({ children }: { children: ReactNode }) {
 
-  // Estados originais do sistema
+  // Estados dos alunos cadastrados no banco
+  const [alunosCadastrados, setAlunosCadastrados] = useState<AlunoApi[]>([])
   const [students, setStudents] = useState<Student[]>([])
   const [turmas, setTurmas] = useState<Turma[]>([])
   const [plans, setPlans] = useState<Record<string, Plan>>({})
@@ -58,27 +60,46 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     try {
       const [
-        alunos,
-        turmasDados,
-        resumo,
-        estatisticas,
-        participantes
-      ] = await Promise.all([
-        api.alunos(),
+        alunosResult,
+        turmasResult,
+        resumoResult,
+        estatisticasResult,
+        participantesResult
+      ] = await Promise.allSettled([
+        api.listarAlunos(),
         api.turmas(),
         api.enemResumo(),
         api.enemEstatisticas(),
         api.enemParticipantes(1, 20)
       ])
 
-      // Dados originais
-      setStudents(alunos)
-      setTurmas(turmasDados)
+      // Dados dos alunos cadastrados
+      if (alunosResult.status === 'fulfilled') {
+        setAlunosCadastrados(alunosResult.value)
+        setStudents(alunosResult.value as unknown as Student[])
+      } else {
+        console.error('Erro ao listar alunos:', alunosResult.reason)
+      }
+
+      // Turmas
+      if (turmasResult.status === 'fulfilled') {
+        setTurmas(turmasResult.value)
+      } else {
+        console.error('Erro ao listar turmas:', turmasResult.reason)
+      }
 
       // Dados reais do ENEM
-      setEnemResumo(resumo)
-      setEnemEstatisticas(estatisticas)
-      setEnemParticipantes(participantes.participantes ?? [])
+      if (resumoResult.status === 'fulfilled') {
+        setEnemResumo(resumoResult.value)
+      }
+
+      if (estatisticasResult.status === 'fulfilled') {
+        setEnemEstatisticas(estatisticasResult.value)
+      }
+
+      if (participantesResult.status === 'fulfilled') {
+        setEnemParticipantes(participantesResult.value.participantes ?? [])
+      }
 
     } catch (e) {
       console.error('Erro ao carregar dados:', e)
@@ -94,15 +115,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Cadastro de turmas
   const addTurma = async (ident: string, turno: string) => {
-    const value = ident.trim().toUpperCase()
+    const raw = ident.trim()
 
-    if (!value) {
+    if (!raw) {
       return { error: 'Informe o identificador da turma.' }
     }
 
-    const nome = `3ª ${value}`
+    const value = raw.toUpperCase()
+    const nome = value.startsWith('3ª') ? value : `3ª ${value}`
 
-    if (turmas.some(t => norm(t.nome) === norm(nome))) {
+    if (turmas.some(t => norm(t.nome || (t as { identificador?: string }).identificador || '') === norm(nome))) {
       return { error: `A turma ${nome} já existe.` }
     }
 
@@ -110,8 +132,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const turma = await api.criarTurma({ nome, turno })
 
       setTurmas(current => [...current, turma])
+      await refresh()
 
-      return { turma: turma.nome }
+      return { turma: turma.nome || (turma as { identificador?: string }).identificador || nome }
     } catch (e) {
       return { error: (e as Error).message }
     }
@@ -145,7 +168,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider
       value={{
-        // Funcionalidades originais
+        // Funcionalidades de alunos cadastrados e turmas
+        alunosCadastrados,
         students,
         turmas,
         plans,
@@ -154,7 +178,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         refresh,
         addTurma,
         setPlan,
-        customCount: students.length,
+        customCount: alunosCadastrados.length,
         customTurmas: turmas.length,
 
         // Dados reais do ENEM

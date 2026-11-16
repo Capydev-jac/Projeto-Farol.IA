@@ -270,3 +270,37 @@ export const consultarAluno = async (
     });
   }
 };
+
+// ========================================
+// EXCLUIR ESTUDANTE
+// ========================================
+
+export const excluirAluno = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const result = await pool.query(
+      `DELETE FROM alunos WHERE id = $1 RETURNING id`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({
+        erro: "Estudante não encontrado.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      sucesso: true,
+      mensagem: "Estudante excluído com sucesso.",
+    });
+  } catch (error: unknown) {
+    console.error("Erro ao excluir estudante:", error);
+
+    res.status(500).json({
+      erro: "Erro ao excluir estudante.",
+    });
+  }
+};

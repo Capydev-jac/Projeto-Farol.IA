@@ -159,6 +159,7 @@ export default function NovoEstudanteForm({ onClose, defaultTurma }: {
       const r = await api.cadastrarAluno(paraCadastro(dados))  // letras (A, B, C…) para o banco
       setAluno(r.aluno)
       setPredicaoPayload(paraPredicao(dados))                  // números para o modelo
+      await refresh()
     } catch (err) {
       setErro(
         err instanceof ApiError && err.status === 409
@@ -177,6 +178,7 @@ export default function NovoEstudanteForm({ onClose, defaultTurma }: {
     try {
       const r = await api.preverRisco(predicaoPayload)
       setResultado(r.resultado)
+      await refresh()
     } catch (err) {
       setErro((err as Error).message)
     } finally {
@@ -202,8 +204,12 @@ export default function NovoEstudanteForm({ onClose, defaultTurma }: {
             <div className="foot-actions">
               <button type="button" className="btn" onClick={novo}>Cadastrar outro</button>
               <button type="button" className={'btn' + (resultado ? ' teal' : '')}
-                onClick={() => { onClose(); refresh(); nav(`/estudantes/${aluno.id}`) }}>
-                Ver estudante
+                onClick={async () => {
+                  await refresh()
+                  onClose()
+                  nav('/cadastro')
+                }}>
+                Ver lista de estudantes
               </button>
             </div>
           </>
