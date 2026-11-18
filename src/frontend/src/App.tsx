@@ -17,16 +17,18 @@ import Turmas from './pages/Turmas'
 import Interventions from './pages/Interventions'
 import { useStore } from './store'
 import Icon from './components/Icon'
+import AlunoDetalhe from './pages/AlunoDetalhe'
 
 const TITLES: Record<string, string> = {
   '/': 'Visão geral',
-  '/cadastro': 'Cadastro de alunos',
-  '/cadastro-alunos': 'Cadastro de alunos',
+  '/cadastro': 'Estudantes cadastrados',
+  '/cadastro-alunos': 'Estudantes cadastrados',
   '/estudantes': 'Estudantes (ENEM 2023)',
   '/turmas': 'Turmas',
   '/intervencoes': 'Intervenções',
   '/modelo': 'Sobre o modelo',
   '/privacidade': 'Privacidade e dados',
+  '/alunos': "Ficha do aluno",
 }
 
 function Sidebar() {
@@ -65,12 +67,13 @@ function Sidebar() {
 
         <NavLink to="/cadastro" className={link}>
           <Icon name="user" />
-          Cadastro de alunos
+          Estudantes cadastrados
           {alunosCadastrados.length > 0 && (
             <em>{alunosCadastrados.length}</em>
           )}
         </NavLink>
 
+    
         <NavLink to="/estudantes" className={link}>
           <Icon name="users" />
           Estudantes (ENEM)
@@ -179,6 +182,11 @@ export default function App() {
           <Route
             path="/cadastro-alunos"
             element={<CadastroAlunos />}
+          />
+
+          <Route
+            path="/alunos/:id"
+            element={<AlunoDetalhe />}
           />
 
           <Route

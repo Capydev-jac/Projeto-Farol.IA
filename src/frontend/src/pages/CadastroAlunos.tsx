@@ -15,6 +15,7 @@ import {
 import { linhasModelo } from '../features/cadastro/importacaoAlunos'
 import { downloadCSV } from '../lib/utils'
 import CadastroActions from '../features/cadastro/Cadastro'
+import { useNavigate } from 'react-router-dom'
 
 // Visual styling helper for AI alerts
 const BADGE_RISCO: Record<string, { label: string; classe: string }> = {
@@ -25,6 +26,7 @@ const BADGE_RISCO: Record<string, { label: string; classe: string }> = {
 
 export default function CadastroAlunos() {
   const { alunosCadastrados, turmas, refresh, loading } = useStore()
+  const navigate = useNavigate()
 
   useEffect(() => {
     refresh()
@@ -43,6 +45,7 @@ export default function CadastroAlunos() {
   const [calculandoIds, setCalculandoIds] = useState<Set<number>>(new Set())
   const [executandoLote, setExecutandoLote] = useState(false)
   const [progressoLote, setProgressoLote] = useState<{ total: number; concluidos: number } | null>(null)
+  const [alunoEdicao, setAlunoEdicao] = useState<AlunoApi | null>(null)
 
   // Mensagens de feedback
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null)
@@ -128,9 +131,15 @@ export default function CadastroAlunos() {
       await refresh()
       notificar(`Predição calculada com sucesso para ${aluno.nome}! Nível: ${res.resultado.nivel_alerta} (${res.resultado.probabilidade_percentual.toFixed(1)}%).`)
       if (modalFicha?.id === aluno.id) {
-        // Atualiza a ficha aberta
-        const atualizado = alunosCadastrados.find(a => a.id === aluno.id)
-        if (atualizado) setModalFicha({ ...atualizado, ...res.aluno })
+        setModalFicha(prev =>
+          prev
+            ? {
+              ...prev,
+              ia_nivel_alerta: res.resultado.nivel_alerta,
+              ia_probabilidade_risco: res.resultado.probabilidade_percentual
+            }
+            : prev
+        )
       }
     } catch (err) {
       notificar(`Erro ao calcular IA para ${aluno.nome}: ${(err as Error).message}`, true)
@@ -567,10 +576,19 @@ export default function CadastroAlunos() {
                       <button
                         type="button"
                         className="btn sm"
-                        onClick={() => setModalFicha(a)}
+                        onClick={() => navigate(`/alunos/${a.id}`)}
                         title="Ver ficha completa do estudante"
                       >
-                        Ver ficha
+                        Detalhes
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => setAlunoEdicao(a)}
+                        title="Editar estudante"
+                      >
+                        Editar
                       </button>
 
                       <button
@@ -618,6 +636,17 @@ export default function CadastroAlunos() {
         <NovoEstudanteForm
           onClose={() => {
             setModalNovo(false)
+            refresh()
+          }}
+        />
+      )}
+
+      {/* Modal de Edição do Aluno */}
+      {alunoEdicao && (
+        <NovoEstudanteForm
+          alunoEdicao={alunoEdicao}
+          onClose={() => {
+            setAlunoEdicao(null)
             refresh()
           }}
         />

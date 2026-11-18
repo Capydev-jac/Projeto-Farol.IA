@@ -32,15 +32,16 @@ export default function Interventions() {
             <ul className="mini-list">
               {c.list.slice(0, SHOW).map((s) => (
                 <li key={s.id}>
-                  <Link className="id" to={`/estudantes/${s.id}`}>{s.id}</Link>
+                  <Link className="id" to={`/alunos/${s.id}`}>{s.id}</Link>
                   <span className="muted small">{s.turma} · {s.school}</span>
-                  <span className="small">{s.enem} pts</span>
                 </li>
               ))}
               {c.list.length === 0 && <li className="muted small">Nenhum estudante nesta etapa.</li>}
             </ul>
             {c.list.length > SHOW && (
-              <Link className="link" to={c.title === 'Sem plano' ? '/estudantes?tab=semplano' : '/estudantes?risk=Elevado'}>Ver todos ({c.list.length}) →</Link>
+              <Link className="link" to="/cadastro">
+                Ver todos ({c.list.length}) →
+              </Link>
             )}
           </section>
         ))}

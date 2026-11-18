@@ -173,6 +173,17 @@ export const api = {
       body: JSON.stringify(dados)
     }),
 
+
+  atualizarAluno: (id: number | string, dados: CadastroAlunoPayload) =>
+    request<{ sucesso: boolean; mensagem?: string }>(
+      `/alunos/${encodeURIComponent(String(id))}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(dados)
+      }
+    ),
+
+
   excluirAluno: (id: number | string) =>
     request<{ sucesso: boolean; mensagem?: string }>(`/alunos/${encodeURIComponent(String(id))}`, {
       method: 'DELETE'

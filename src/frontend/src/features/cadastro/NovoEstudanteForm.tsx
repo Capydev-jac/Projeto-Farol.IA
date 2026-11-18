@@ -3,7 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import Modal from '../../components/Modal'
 import { useStore } from '../../store'
 import { api, ApiError, type AlunoCadastrado, type PredicaoPayload, type PredicaoResultado } from '../../services/api'
-import { paraCadastro, paraPredicao, type AlunoNumerico } from './alunoMapper'
+import {
+  paraCadastro,
+  paraPredicao,
+  alunoApiParaNumerico,
+  type AlunoNumerico
+} from './alunoMapper'
+
+import type { AlunoApi } from '../../services/api'
 import Icon from '../../components/Icon'
 import * as O from './formOptions'
 
@@ -108,17 +115,45 @@ const TAG_CLASSE = { CRITICO: 'Elevado', ATENCAO: 'Atenção', REGULAR: '' } as 
 const TAG_TEXTO = { CRITICO: 'Crítico', ATENCAO: 'Atenção', REGULAR: 'Regular' } as const
 
 // Componente principal
-export default function NovoEstudanteForm({ onClose, defaultTurma }: {
+export default function NovoEstudanteForm({ onClose, defaultTurma, alunoEdicao }: {
   onClose: () => void
   defaultTurma?: string
+  alunoEdicao?: AlunoApi
 }) {
   const { turmas, refresh } = useStore()
   const nav = useNavigate()
 
-  const [f, setF] = useState<FormState>(() => ({
+  const [f, setF] = useState<FormState>(() => {
+  if (alunoEdicao) {
+    const dados = alunoApiParaNumerico(alunoEdicao)
+
+    return {
+      nome: dados.nome,
+      ra: dados.ra,
+      turmaId: dados.turmaId?.toString() ?? '',
+      faixa: dados.faixa,
+      sexo: dados.sexo,
+      q001: dados.q001,
+      q002: dados.q002,
+      q003: dados.q003,
+      q004: dados.q004,
+      q005: dados.q005,
+      q006: dados.q006,
+      q009: dados.q009,
+      q014: dados.q014,
+      q019: dados.q019,
+      q022: dados.q022,
+      veiculo: dados.veiculo,
+      refrig: dados.refrig,
+      conect: dados.conect
+    }
+  }
+
+  return {
     ...INICIAL,
     turmaId: turmas.find((t) => t.nome === defaultTurma)?.id ?? ''
-  }))
+  }
+})
   const [erro, setErro] = useState('')
   const [tentou, setTentou] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -155,10 +190,18 @@ export default function NovoEstudanteForm({ onClose, defaultTurma }: {
 
     setSalvando(true)
     try {
-      const dados = paraAluno(f)                               // formulário -> códigos numéricos
-      const r = await api.cadastrarAluno(paraCadastro(dados))  // letras (A, B, C…) para o banco
+      const dados = paraAluno(f)
+
+      if (alunoEdicao) {
+        await api.atualizarAluno(alunoEdicao.id, paraCadastro(dados))
+        await refresh()
+        onClose()
+        return
+      }
+
+      const r = await api.cadastrarAluno(paraCadastro(dados))
       setAluno(r.aluno)
-      setPredicaoPayload(paraPredicao(dados))                  // números para o modelo
+      setPredicaoPayload(paraPredicao(dados))
       await refresh()
     } catch (err) {
       setErro(
@@ -260,7 +303,7 @@ export default function NovoEstudanteForm({ onClose, defaultTurma }: {
   // Tela 1: formulário
   return (
     <Modal
-      title="Cadastrar estudante"
+      title={alunoEdicao ? 'Editar estudante' : 'Cadastrar estudante'}
       subtitle="Preencha os dados abaixo. Todos os campos são obrigatórios, exceto a turma."
       size="lg"
       onClose={fechar}
@@ -279,7 +322,9 @@ export default function NovoEstudanteForm({ onClose, defaultTurma }: {
           <div className="foot-actions">
             <button type="button" className="btn" onClick={fechar}>Cancelar</button>
             <button type="button" className="btn teal" disabled={salvando} onClick={cadastrar}>
-              {salvando ? 'Salvando…' : 'Cadastrar estudante'}
+              {salvando
+                ? (alunoEdicao ? 'Salvando alterações…' : 'Cadastrando…')
+                : (alunoEdicao ? 'Salvar alterações' : 'Cadastrar estudante')}
             </button>
           </div>
         </>

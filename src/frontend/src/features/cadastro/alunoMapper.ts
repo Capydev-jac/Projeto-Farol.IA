@@ -102,3 +102,48 @@ export function alunoApiParaPredicao(a: AlunoApi): PredicaoPayload {
     CONECTIVIDADE: a.conectividade ? 1 : 0
   }
 }
+
+
+/** Converte um aluno do banco para preencher o formulário de edição. */
+export function alunoApiParaNumerico(a: AlunoApi): AlunoNumerico {
+  const converterLetra = (letra: string | null | undefined, padrao = 0) => {
+    if (!letra) return padrao
+    const idx = 'ABCDEFGHIJKLMNOPQ'.indexOf(letra.toUpperCase())
+    return idx >= 0 ? idx : padrao
+  }
+
+  const converterEscolaridade = (letra: string | null | undefined) => {
+    if (!letra) return -1
+    if (letra.toUpperCase() === 'H') return -1
+    const idx = 'ABCDEFG'.indexOf(letra.toUpperCase())
+    return idx >= 0 ? idx : -1
+  }
+
+  const converterOcupacao = (letra: string | null | undefined) => {
+    if (!letra) return -1
+    if (letra.toUpperCase() === 'F') return -1
+    const idx = 'ABCDE'.indexOf(letra.toUpperCase())
+    return idx >= 0 ? idx : -1
+  }
+
+  return {
+    nome: a.nome,
+    ra: a.numero_matricula,
+    turmaId: a.turma_id,
+    faixa: Number(a.tp_faixa_etaria || 2),
+    sexo: a.tp_sexo === 'F' ? 1 : 0,
+    q001: converterEscolaridade(a.q001_escolaridade_pai),
+    q002: converterEscolaridade(a.q002_escolaridade_mae),
+    q003: converterOcupacao(a.q003_ocupacao_pai),
+    q004: converterOcupacao(a.q004_ocupacao_mae),
+    q005: Number(a.q005_tamanho_familia || 4),
+    q006: converterLetra(a.q006_renda_familiar, 1),
+    q009: converterLetra(a.q009_quartos, 2),
+    q014: converterLetra(a.q014_maquina_lavar, 1),
+    q019: converterLetra(a.q019_televisores, 1),
+    q022: converterLetra(a.q022_celulares, 2),
+    veiculo: a.veiculo_proprio ? 1 : 0,
+    refrig: a.refrigeracao ? 1 : 0,
+    conect: a.conectividade ? 1 : 0
+  }
+}
