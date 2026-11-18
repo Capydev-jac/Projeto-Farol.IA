@@ -6,6 +6,7 @@ import {
   cadastrarAluno,
   consultarAluno,
   excluirAluno,
+  editarAluno,
 } from "../controllers/alunos.controller.js";
 
 const router = Router();
@@ -21,5 +22,9 @@ router.get("/:id", consultarAluno);
 
 // Excluir estudante
 router.delete("/:id", excluirAluno);
+
+//Editar aluno
+
+router.patch("/:id", editarAluno);
 
 export default router;

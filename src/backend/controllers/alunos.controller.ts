@@ -304,3 +304,158 @@ export const excluirAluno = async (
     });
   }
 };
+
+// ========================================
+// EDITAR ESTUDANTE
+// ========================================
+
+export const editarAluno = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+
+    // Validar ID
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({
+        erro: "ID do estudante inválido.",
+      });
+      return;
+    }
+
+    const dados = req.body as Record<string, unknown>;
+
+    // Campos que podem ser editados
+    const camposPermitidos = [
+      "numero_matricula",
+      "nome",
+      "turma_id",
+      "tp_faixa_etaria",
+      "tp_sexo",
+      "q001_escolaridade_pai",
+      "q002_escolaridade_mae",
+      "q003_ocupacao_pai",
+      "q004_ocupacao_mae",
+      "q005_tamanho_familia",
+      "q006_renda_familiar",
+      "q009_quartos",
+      "q014_maquina_lavar",
+      "q019_televisores",
+      "q022_celulares",
+      "veiculo_proprio",
+      "refrigeracao",
+      "conectividade",
+    ] as const;
+
+    // Identificar os campos enviados
+    const camposAtualizados = camposPermitidos.filter((campo) =>
+      Object.prototype.hasOwnProperty.call(dados, campo)
+    );
+
+    if (camposAtualizados.length === 0) {
+      res.status(400).json({
+        erro: "Informe pelo menos um campo para atualizar.",
+      });
+      return;
+    }
+
+    // Validar nome e matrícula quando enviados
+    for (const campo of ["nome", "numero_matricula"] as const) {
+      if (Object.prototype.hasOwnProperty.call(dados, campo)) {
+        if (
+          typeof dados[campo] !== "string" ||
+          dados[campo].trim() === ""
+        ) {
+          res.status(400).json({
+            erro: `${campo === "nome" ? "Nome" : "Matrícula"} não pode ser vazio.`,
+          });
+          return;
+        }
+
+        dados[campo] = dados[campo].trim();
+      }
+    }
+
+    // Validar turma, caso tenha sido enviada
+    if (
+      Object.prototype.hasOwnProperty.call(dados, "turma_id") &&
+      dados.turma_id !== null
+    ) {
+      const turmaId = Number(dados.turma_id);
+
+      if (!Number.isInteger(turmaId) || turmaId <= 0) {
+        res.status(400).json({
+          erro: "ID da turma inválido.",
+        });
+        return;
+      }
+
+      const turmaResult = await pool.query(
+        "SELECT id FROM turmas WHERE id = $1",
+        [turmaId]
+      );
+
+      if (turmaResult.rows.length === 0) {
+        res.status(400).json({
+          erro: "Turma não encontrada.",
+        });
+        return;
+      }
+
+      dados.turma_id = turmaId;
+    }
+
+    // Montar atualização somente com campos permitidos
+    const valores = camposAtualizados.map((campo) => dados[campo]);
+
+    const setClause = camposAtualizados
+      .map((campo, index) => `${campo} = $${index + 1}`)
+      .join(", ");
+
+    const result = await pool.query(
+      `
+      UPDATE alunos
+      SET ${setClause}
+      WHERE id = $${valores.length + 1}
+      RETURNING *
+      `,
+      [...valores, id]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({
+        erro: "Estudante não encontrado.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      sucesso: true,
+      mensagem: "Dados do estudante atualizados com sucesso.",
+      aluno: result.rows[0],
+    });
+  } catch (error: unknown) {
+    console.error("Erro ao editar estudante:", error);
+
+    const dbError = error as { code?: string };
+
+    if (dbError.code === "23505") {
+      res.status(409).json({
+        erro: "Já existe um aluno cadastrado com essa matrícula.",
+      });
+      return;
+    }
+
+    if (dbError.code === "23514" || dbError.code === "23503") {
+      res.status(400).json({
+        erro: "Um ou mais dados informados são inválidos.",
+      });
+      return;
+    }
+
+    res.status(500).json({
+      erro: "Erro ao atualizar os dados do estudante.",
+    });
+  }
+};
