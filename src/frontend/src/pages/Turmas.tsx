@@ -1,47 +1,90 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from '../components/Icon'
-import CadastroActions from '../features/cadastro/Cadastro'
+import { NovaTurma } from '../features/cadastro/Cadastro'
 import { useStore } from '../store'
-import { AREAS, ENEM_BASE, getDetail } from '../lib/data'
-import { downloadCSV, avg, pct, STUDENT_HEADER, studentRow } from '../lib/utils'
+import { downloadCSV, pct } from '../lib/utils'
+import type { AlunoApi } from '../services/api'
 import type { Turma } from '../types'
 
 const slug = (t: string) => t.replace(/\s+/g, '').replace('ª', 'a')
 
+const NIVEL: Record<string, string> = {
+  CRITICO: 'Crítico',
+  ATENCAO: 'Atenção',
+  REGULAR: 'Regular'
+}
+
+const nivelDe = (a: AlunoApi) => (a.ia_nivel_alerta ? NIVEL[a.ia_nivel_alerta] : 'Pendente')
+
+const probabilidade = (a: AlunoApi) =>
+  a.ia_probabilidade_risco != null ? Number(a.ia_probabilidade_risco) : null
+
 export default function Turmas() {
-  const { students, turmas } = useStore()
-  const baseAvg = Object.values(ENEM_BASE).reduce((a, b) => a + b, 0) / 4
+  const { alunosCadastrados, turmas, plans } = useStore()
+  const [novaTurma, setNovaTurma] = useState(false)
+
+  const alunosDa = (t: Turma) =>
+    alunosCadastrados.filter((a) => a.turma_id != null && String(a.turma_id) === String(t.id))
 
   const stats = (t: Turma) => {
-    const ts = students.filter((s) => s.turma === t.nome)
-    const high = ts.filter((s) => s.risk === 'Elevado')
-    return { ts, high, enem: avg(ts, (s) => s.enem) }
+    const ts = alunosDa(t)
+    const conta = (nivel: string) => ts.filter((a) => a.ia_nivel_alerta === nivel).length
+    return {
+      ts,
+      criticos: conta('CRITICO'),
+      atencao: conta('ATENCAO'),
+      regulares: conta('REGULAR'),
+      pendentes: ts.filter((a) => !a.ia_nivel_alerta).length
+    }
   }
 
-  // Relatório gerencial por turma: resumo, comparativo com a base ENEM e alunos prioritários.
-  const report = (t: Turma) => {
-    const { ts, high, enem } = stats(t)
-    const att = ts.filter((s) => s.risk === 'Atenção').length
+  // Colunas reais da API. O estudante é identificado pelo RA, sem nome (LGPD).
+  const CABECALHO = [
+    'RA', 'Turma', 'Turno', 'Nível de alerta', 'Probabilidade de risco (%)', 'Recomendação', 'Plano de apoio'
+  ]
+
+  const linha = (a: AlunoApi) => {
+    const p = probabilidade(a)
+    return [
+      a.numero_matricula,
+      a.turma || 'Sem turma',
+      a.turno || '',
+      nivelDe(a),
+      p != null ? p.toFixed(1) : '',
+      (a.ia_recomendacao || '').replace(/[\r\n]+/g, ' '),
+      plans[String(a.id)] ? 'Sim' : 'Não'
+    ]
+  }
+
+  // Relatório gerencial por turma: resumo e estudantes prioritários (risco crítico).
+  const relatorio = (t: Turma) => {
+    const { ts, criticos, atencao, regulares, pendentes } = stats(t)
+    const prioritarios = ts
+      .filter((a) => a.ia_nivel_alerta === 'CRITICO')
+      .sort((a, b) => (probabilidade(b) ?? 0) - (probabilidade(a) ?? 0))
+
     downloadCSV(`relatorio-turma-${slug(t.nome)}.csv`, [
       ['Relatório pedagógico', `Turma ${t.nome} (${t.turno})`],
-      ['Estudantes', ts.length], ['ENEM estimado (média)', Math.round(enem)],
-      ['Risco elevado', high.length], ['Atenção', att], ['Risco menor', ts.length - high.length - att],
+      ['Estudantes', ts.length],
+      ['Risco crítico', criticos],
+      ['Atenção', atencao],
+      ['Regular', regulares],
+      ['Predição pendente', pendentes],
+      ['Com plano de apoio', ts.filter((a) => plans[String(a.id)]).length],
       [],
-      ['Área', 'Estimativa da turma', 'Média base ENEM (ilustrativa)', 'Diferença'],
-      ...AREAS.map((a) => {
-        const m = avg(ts, (s) => getDetail(s).areas[a.key])
-        return [a.name, Math.round(m), ENEM_BASE[a.key], Math.round(m - ENEM_BASE[a.key])]
-      }),
-      [],
-      ['Estudantes prioritários (risco elevado)'],
-      STUDENT_HEADER,
-      ...[...high].sort((a, b) => a.enem - b.enem).map(studentRow),
+      ['Estudantes prioritários (risco crítico)'],
+      CABECALHO,
+      ...prioritarios.map(linha)
     ])
   }
-  const predictions = (t: Turma | null) => {
-    const ts = t ? students.filter((s) => s.turma === t.nome) : students
-    downloadCSV(t ? `predicoes-turma-${slug(t.nome)}.csv` : 'predicoes-todas-as-turmas.csv', [STUDENT_HEADER, ...ts.map(studentRow)])
+
+  const predicoes = (t: Turma | null) => {
+    const lista = t ? alunosDa(t) : alunosCadastrados
+    downloadCSV(
+      t ? `predicoes-turma-${slug(t.nome)}.csv` : 'predicoes-todas-as-turmas.csv',
+      [CABECALHO, ...lista.map(linha)]
+    )
   }
 
   return (
@@ -49,42 +92,83 @@ export default function Turmas() {
       <div className="page-head">
         <div>
           <div className="eyebrow">GESTÃO DE TURMAS</div>
-          <h1>Turmas e cadastro sociológico.</h1>
-          <p className="sub">Crie turmas, cadastre estudantes individualmente ou em lote e baixe relatórios pedagógicos.</p>
+          <h1>Turmas e acompanhamento.</h1>
+          <p className="sub">Crie turmas, acompanhe o risco de cada uma e baixe relatórios pedagógicos.</p>
         </div>
-        <button className="btn" type="button" onClick={() => predictions(null)}><Icon name="download" /> Exportar todas as predições</button>
       </div>
-      <div className="toolbar"><CadastroActions /></div>
+
+      <div className="toolbar" style={{ justifyContent: 'flex-start' }}>
+        <div className="actions">
+          <button className="btn" type="button" onClick={() => setNovaTurma(true)}>
+            <Icon name="plus" /> Nova turma
+          </button>
+          <button
+            className="btn"
+            type="button"
+            onClick={() => predicoes(null)}
+            disabled={!alunosCadastrados.length}
+          >
+            <Icon name="download" /> Exportar Predições
+          </button>
+        </div>
+      </div>
 
       <div className="turma-grid">
+        {turmas.length === 0 && (
+          <section className="card">
+            <p className="muted small">Nenhuma turma criada ainda. Use “Nova turma” para começar.</p>
+          </section>
+        )}
+
         {turmas.map((t) => {
-          const { ts, high, enem } = stats(t)
-          const hasPrediction = ts.some(s => Number.isFinite(s.enem))
-          const diff = Math.round(enem - baseAvg)
+          const { ts, criticos, atencao, regulares, pendentes } = stats(t)
           return (
-            <section className="card turma" key={t.nome}>
+            <section className="card turma" key={t.id}>
               <div className="card-head">
-                <div><h3>{t.nome.replace('ª ', 'ª Série ')}</h3><p className="muted small">{t.turno}{t.custom ? ' · criada por você' : ''}</p></div>
+                <div>
+                  <h3>{t.nome.replace('ª ', 'ª Série ')}</h3>
+                  <p className="muted small">{t.turno}</p>
+                </div>
                 <Icon name="class" size={18} />
               </div>
+
               <div className="turma-stats">
                 <div><b>{ts.length}</b><small className="muted">estudantes</small></div>
-                <div><b>{hasPrediction ? Math.round(enem) : '—'}</b><small className="muted">ENEM estimado</small></div>
-                <div><b className="red">{high.length}</b><small className="muted">risco elevado ({pct(high.length, ts.length)}%)</small></div>
+                <div><b className="red">{criticos}</b><small className="muted">risco crítico ({pct(criticos, ts.length)}%)</small></div>
+                <div><b className="amber">{atencao}</b><small className="muted">em atenção</small></div>
               </div>
-              <p className="small muted">{hasPrediction ? <>Média da turma {diff >= 0 ? '+' : '−'}{Math.abs(diff)} pts vs base histórica do ENEM (ref. ilustrativa).</> : ts.length ? 'Predições pendentes: modelo em desenvolvimento.' : 'Sem estudantes cadastrados nesta turma.'}</p>
+
+              <p className="small muted">
+                {ts.length
+                  ? `${regulares} regular(es) · ${pendentes} com predição pendente`
+                  : 'Sem estudantes cadastrados nesta turma.'}
+              </p>
+
               <div className="turma-actions">
-                <Link className="btn sm" to={`/estudantes?turma=${encodeURIComponent(t.nome)}`}>Ver estudantes</Link>
-                <button className="btn sm" type="button" onClick={() => report(t)} disabled={!ts.length}><Icon name="download" size={13} /> Relatório</button>
-                <button className="btn sm" type="button" onClick={() => predictions(t)} disabled={!ts.length}><Icon name="download" size={13} /> Predições</button>
+                <Link className="btn sm" to={`/cadastro?turma=${encodeURIComponent(String(t.id))}`}>
+                  Ver estudantes
+                </Link>
+                <button className="btn sm" type="button" onClick={() => relatorio(t)} disabled={!ts.length}>
+                  <Icon name="download" size={13} /> Relatório
+                </button>
+                <button className="btn sm" type="button" onClick={() => predicoes(t)} disabled={!ts.length}>
+                  <Icon name="download" size={13} /> Predições
+                </button>
               </div>
             </section>
           )
         })}
       </div>
 
-      <div className="notice"><Icon name="info" /> Relatórios e predições são estimativas de apoio à decisão. Compartilhe apenas com a equipe pedagógica e sem associar códigos a nomes fora do sistema (LGPD).</div>
-      <footer className="foot"><span>Dados cadastrados nesta instalação. Predições ainda não disponíveis.</span><span>Farol.IA · FATEC Jacareí</span></footer>
+      {novaTurma && <NovaTurma onClose={() => setNovaTurma(false)} />}
+
+      <div className="notice">
+        <Icon name="info" /> Relatórios e predições são estimativas de apoio à decisão. Compartilhe apenas com a equipe pedagógica e sem associar códigos a nomes fora do sistema (LGPD).
+      </div>
+      <footer className="foot">
+        <span>Dados cadastrados nesta instalação.</span>
+        <span>Farol.IA · FATEC Jacareí</span>
+      </footer>
     </main>
   )
 }

@@ -10,7 +10,7 @@ import { COLUNAS, lerCSV, linhasModelo, type ResultadoLeitura } from './importac
 
 const AVISO_IMPORT = 'Use somente as colunas do modelo (nome, RA e as respostas do dicionário de dados). Não inclua CPF, contatos ou outros dados pessoais.'
 
-function NovaTurma({ onClose }: { onClose: () => void }) {
+export function NovaTurma({ onClose }: { onClose: () => void }) {
   const { addTurma } = useStore()
   const [ident, setIdent] = useState('')
   const [turno, setTurno] = useState('Manhã')

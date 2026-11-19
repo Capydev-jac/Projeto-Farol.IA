@@ -11,7 +11,7 @@ import {
 } from '../features/cadastro/formOptions'
 import { downloadCSV } from '../lib/utils'
 import CadastroActions from '../features/cadastro/Cadastro'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 // Visual styling helper for AI alerts
 const BADGE_RISCO: Record<string, { label: string; classe: string }> = {
@@ -23,6 +23,7 @@ const BADGE_RISCO: Record<string, { label: string; classe: string }> = {
 export default function CadastroAlunos() {
   const { alunosCadastrados, turmas, refresh, loading } = useStore()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   useEffect(() => {
     refresh()
@@ -30,7 +31,8 @@ export default function CadastroAlunos() {
 
   // Filtros locais
   const [busca, setBusca] = useState('')
-  const [turmaFiltro, setTurmaFiltro] = useState('')
+  // Permite abrir já filtrado: /cadastro?turma=<id> (usado na tela de Turmas)
+  const [turmaFiltro, setTurmaFiltro] = useState(searchParams.get('turma') ?? '')
   const [riscoFiltro, setRiscoFiltro] = useState('')
   const [sexoFiltro, setSexoFiltro] = useState('')
 
@@ -243,7 +245,7 @@ export default function CadastroAlunos() {
           <div className="eyebrow">GESTÃO DE ESTUDANTES · BANCO DE DADOS FAROL.IA</div>
           <h1>Cadastro de Alunos</h1>
           <p className="sub">
-            Módulo oficial de registro socioeconômico.
+            Módulo oficial de registro socioeconômico. Estruturado conforme as 15 variáveis preditivas do LightGBM (ENEM 2023) e armazenado no PostgreSQL.
           </p>
         </div>
       </div>
