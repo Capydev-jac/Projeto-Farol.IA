@@ -1,4 +1,3 @@
-
 import { type Request, type Response } from "express";
 import { pool } from "../config/database.js";
 
@@ -70,15 +69,6 @@ export const salvarIntervencao = async (
         status || null,
         JSON.stringify(owners),
       ]
-    );
-
-    await pool.query(
-      `
-      UPDATE alunos
-      SET has_plan = TRUE
-      WHERE id = $1
-      `,
-      [req.params.id]
     );
 
     res.json({
