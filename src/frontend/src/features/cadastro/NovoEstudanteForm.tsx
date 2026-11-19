@@ -37,6 +37,10 @@ interface FormState {
   conect: Num
 }
 
+// RA: somente números, exatamente 11 dígitos
+const RA_TAMANHO = 11
+const RA_REGEX = /^\d{11}$/
+
 const INICIAL: FormState = {
   nome: '', ra: '', turmaId: '',
   faixa: '', sexo: '',
@@ -120,7 +124,7 @@ export default function NovoEstudanteForm({ onClose, defaultTurma, alunoEdicao }
   defaultTurma?: string
   alunoEdicao?: AlunoApi
 }) {
-  const { turmas, refresh } = useStore()
+  const { turmas, alunosCadastrados, refresh } = useStore()
   const nav = useNavigate()
 
   const [f, setF] = useState<FormState>(() => {
@@ -174,6 +178,9 @@ export default function NovoEstudanteForm({ onClose, defaultTurma, alunoEdicao }
   const total = chaves.length + 2
   const inv = (k: keyof typeof OBRIGATORIOS) => tentou && f[k] === ''
 
+  // RA de 11 dígitos
+  const raValido = RA_REGEX.test(f.ra) || (!!alunoEdicao && f.ra === alunoEdicao.numero_matricula)
+
   const cadastrar = async (e: { preventDefault: () => void }) => {
     e.preventDefault()
     setErro('')
@@ -185,6 +192,18 @@ export default function NovoEstudanteForm({ onClose, defaultTurma, alunoEdicao }
     if (faltam > 0) {
       setErro(`Faltam ${faltam} campo(s) obrigatório(s). Os campos em vermelho precisam ser preenchidos.`)
       setTimeout(() => document.querySelector('.modal .invalid, .modal .invalid-id')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 0)
+      return
+    }
+
+    if (!raValido) {
+      setErro(`O RA deve ter exatamente ${RA_TAMANHO} dígitos numéricos.`)
+      setTimeout(() => document.querySelector('.modal .invalid-id')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 0)
+      return
+    }
+
+    // RA repetido: confere na lista carregada antes de enviar
+    if (!alunoEdicao && alunosCadastrados.some((a) => a.numero_matricula.trim() === f.ra.trim())) {
+      setErro('Já existe um estudante cadastrado com este RA.')
       return
     }
 
@@ -337,9 +356,16 @@ export default function NovoEstudanteForm({ onClose, defaultTurma, alunoEdicao }
               <span>Nome do aluno<span className="req">*</span></span>
               <input value={f.nome} maxLength={150} onChange={(e) => set('nome')(e.target.value)} placeholder="Nome completo" />
             </label>
-            <label className={tentou && !f.ra.trim() ? 'invalid invalid-id' : ''}>
+            <label className={tentou && !raValido ? 'invalid invalid-id' : ''}>
               <span>RA / Matrícula<span className="req">*</span></span>
-              <input value={f.ra} maxLength={50} onChange={(e) => set('ra')(e.target.value)} placeholder="Ex.: 20263014" />
+              <input
+                value={f.ra}
+                maxLength={RA_TAMANHO}
+                inputMode="numeric"
+                autoComplete="off"
+                onChange={(e) => set('ra')(e.target.value.replace(/\D/g, '').slice(0, RA_TAMANHO))}
+                placeholder="20267654321"
+              />
             </label>
             <label>
               <span>Turma <span className="muted">(opcional)</span></span>
