@@ -4,6 +4,8 @@ export type AreaKey = 'LC' | 'CH' | 'CN' | 'MT'
 
 export interface Student {
   id: string
+  nome?: string
+  matricula?: string
   school: string
   turma: string
   turmaId?: string
@@ -53,45 +55,4 @@ export interface Filters {
   infra?: string | number
   freqMax?: string | number
   mtMax?: string | number
-}
-
-export interface EnemResumo {
-  total_participantes: number
-  media_cn: string | null
-  media_ch: string | null
-  media_lc: string | null
-  media_mt: string | null
-  media_redacao: string | null
-}
-
-export interface EnemCategoria {
-  categoria: string | null
-  total: number
-}
-
-export interface EnemEstatisticas {
-  sexo: EnemCategoria[]
-  faixa_etaria: EnemCategoria[]
-  tipo_escola: EnemCategoria[]
-  estados: EnemCategoria[]
-}
-
-export interface EnemParticipante {
-  inscricao: string
-  ano: string | null
-  faixa_etaria: string | null
-  sexo: string | null
-  tipo_escola: string | null
-  uf_prova: string | null
-  nota_cn: string | number | null
-  nota_ch: string | number | null
-  nota_lc: string | number | null
-  nota_mt: string | number | null
-  nota_redacao: string | number | null
-}
-
-export interface EnemParticipantesPage {
-  pagina: number
-  limite: number
-  participantes: EnemParticipante[]
 }

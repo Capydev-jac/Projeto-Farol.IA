@@ -10,14 +10,7 @@ import React, {
 import { api, type AlunoApi } from './services/api'
 import { norm } from './lib/utils'
 import { alunoApiParaStudent } from './lib/alunoAdapter'
-import type {
-  EnemEstatisticas,
-  EnemParticipante,
-  EnemResumo,
-  Plan,
-  Student,
-  Turma
-} from './types'
+import type { Plan, Student, Turma } from './types'
 
 interface StoreValue {
   students: Student[]
@@ -32,9 +25,6 @@ interface StoreValue {
   customCount: number
   customTurmas: number
   resetCustom?: () => void
-  enemResumo: EnemResumo | null
-  enemEstatisticas: EnemEstatisticas | null
-  enemParticipantes: EnemParticipante[]
 }
 
 const Ctx = createContext<StoreValue | null>(null)
@@ -49,30 +39,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Novos estados: dados reais do ENEM
-  const [enemResumo, setEnemResumo] = useState<EnemResumo | null>(null)
-  const [enemEstatisticas, setEnemEstatisticas] = useState<EnemEstatisticas | null>(null)
-  const [enemParticipantes, setEnemParticipantes] = useState<EnemParticipante[]>([])
-
   // Busca os dados do backend e PostgreSQL
   const refresh = useCallback(async () => {
     setLoading(true)
     setError('')
 
     try {
-      const [
-        alunosResult,
-        turmasResult,
-        resumoResult,
-        estatisticasResult,
-        participantesResult
-      ] = await Promise.allSettled([
+      const [alunosResult, turmasResult, planosResult] = await Promise.allSettled([
         api.listarAlunos(),
         api.turmas(),
-        api.enemResumo(),
-        api.enemEstatisticas(),
-        api.enemParticipantes(1, 20)
+        api.listarPlanos()
       ])
+
+      // Planos de intervenção salvos no banco (chave = id do aluno)
+      const planos: Record<string, Plan> =
+        planosResult.status === 'fulfilled' ? planosResult.value : {}
+
+      if (planosResult.status === 'fulfilled') {
+        setPlans(planos)
+      } else {
+        console.error('Erro ao listar planos:', planosResult.reason)
+      }
 
       // Dados dos alunos cadastrados
       if (alunosResult.status === 'fulfilled') {
@@ -80,9 +67,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
         setAlunosCadastrados(alunos)
 
-        const estudantesConvertidos = alunos.map(
-          alunoApiParaStudent
-        )
+        const estudantesConvertidos = alunos.map(a => ({
+          ...alunoApiParaStudent(a),
+          hasPlan: Boolean(planos[String(a.id)])
+        }))
 
         setStudents(estudantesConvertidos)
 
@@ -104,19 +92,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setTurmas(turmasResult.value)
       } else {
         console.error('Erro ao listar turmas:', turmasResult.reason)
-      }
-
-      // Dados reais do ENEM
-      if (resumoResult.status === 'fulfilled') {
-        setEnemResumo(resumoResult.value)
-      }
-
-      if (estatisticasResult.status === 'fulfilled') {
-        setEnemEstatisticas(estatisticasResult.value)
-      }
-
-      if (participantesResult.status === 'fulfilled') {
-        setEnemParticipantes(participantesResult.value.participantes ?? [])
       }
 
     } catch (e) {
@@ -197,12 +172,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         addTurma,
         setPlan,
         customCount: alunosCadastrados.length,
-        customTurmas: turmas.length,
-
-        // Dados reais do ENEM
-        enemResumo,
-        enemEstatisticas,
-        enemParticipantes
+        customTurmas: turmas.length
       }}
     >
       {children}

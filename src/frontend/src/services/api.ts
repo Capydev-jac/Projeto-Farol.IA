@@ -1,7 +1,4 @@
 import type {
-  EnemEstatisticas,
-  EnemParticipantesPage,
-  EnemResumo,
   Plan,
   Student,
   Turma
@@ -197,17 +194,11 @@ export const api = {
     }),
 
   //  Intervenções
+  listarPlanos: () => request<Record<string, Plan>>('/intervencoes'),
+
   salvarPlano: (id: string, dados: Plan) =>
     request<Plan>(`/intervencoes/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(dados)
-    }),
-
-  // Dados reais do ENEM
-  enemResumo: () => request<EnemResumo>('/enem/resumo'),
-
-  enemEstatisticas: () => request<EnemEstatisticas>('/enem/estatisticas'),
-
-  enemParticipantes: (pagina = 1, limite = 20) =>
-    request<EnemParticipantesPage>(`/enem/participantes?pagina=${pagina}&limite=${limite}`)
+  })
 }

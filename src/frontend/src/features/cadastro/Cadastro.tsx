@@ -244,9 +244,9 @@ export default function CadastroActions({ defaultTurma, compact }: { defaultTurm
   return (
     <>
       <div className="actions">
+        <button type="button" className="btn teal" onClick={() => setOpen('aluno')}><Icon name="plus" /> Cadastrar Estudante</button>
         <button type="button" className="btn" onClick={() => setOpen('turma')}><Icon name="plus" /> Nova turma</button>
         <button type="button" className="btn" onClick={() => setOpen('csv')}><Icon name="upload" /> {compact ? 'Importar' : 'Importar CSV'}</button>
-        <button type="button" className="btn teal" onClick={() => setOpen('aluno')}><Icon name="plus" /> Cadastrar estudante</button>
       </div>
       {open === 'turma' && <NovaTurma onClose={close} />}
       {open === 'aluno' && <NovoEstudante onClose={close} defaultTurma={defaultTurma} />}

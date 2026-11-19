@@ -1,4 +1,3 @@
-
 import React from 'react'
 import {
   Routes,
@@ -9,8 +8,6 @@ import {
 } from 'react-router-dom'
 
 import Overview from './pages/Overview'
-import Students from './pages/Students'
-import StudentDetail from './pages/StudentDetail'
 import CadastroAlunos from './pages/CadastroAlunos'
 import { Modelo, Privacidade } from './pages/Info'
 import Turmas from './pages/Turmas'
@@ -23,7 +20,6 @@ const TITLES: Record<string, string> = {
   '/': 'Visão geral',
   '/cadastro': 'Estudantes cadastrados',
   '/cadastro-alunos': 'Estudantes cadastrados',
-  '/estudantes': 'Estudantes (ENEM 2023)',
   '/turmas': 'Turmas',
   '/intervencoes': 'Intervenções',
   '/modelo': 'Sobre o modelo',
@@ -32,13 +28,8 @@ const TITLES: Record<string, string> = {
 }
 
 function Sidebar() {
-  // Quantidade real de participantes do ENEM e alunos cadastrados
-  const { enemResumo, alunosCadastrados } = useStore()
-
-  const totalParticipantes = Number(
-    enemResumo?.total_participantes ?? 0
-  )
-
+  const { alunosCadastrados } = useStore()
+  
   const link = ({ isActive }: { isActive: boolean }) =>
     'nav-item' + (isActive ? ' active' : '')
 
@@ -67,19 +58,10 @@ function Sidebar() {
 
         <NavLink to="/cadastro" className={link}>
           <Icon name="user" />
-          Estudantes cadastrados
+          Estudantes
           {alunosCadastrados.length > 0 && (
             <em>{alunosCadastrados.length}</em>
           )}
-        </NavLink>
-
-    
-        <NavLink to="/estudantes" className={link}>
-          <Icon name="users" />
-          Estudantes (ENEM)
-          <em>
-            {totalParticipantes.toLocaleString('pt-BR')}
-          </em>
         </NavLink>
 
         <NavLink to="/turmas" className={link}>
@@ -187,16 +169,6 @@ export default function App() {
           <Route
             path="/alunos/:id"
             element={<AlunoDetalhe />}
-          />
-
-          <Route
-            path="/estudantes"
-            element={<Students />}
-          />
-
-          <Route
-            path="/estudantes/:id"
-            element={<StudentDetail />}
           />
 
           <Route

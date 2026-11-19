@@ -1,8 +1,12 @@
-
-import React from 'react'
-import { Link, useParams } from 'react-router-dom'
+import React, { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import Icon from '../components/Icon'
 import { useStore } from '../store'
+import { api } from '../services/api'
+import NovoEstudanteForm from '../features/cadastro/NovoEstudanteForm'
+import { alunoApiParaPredicao } from '../features/cadastro/alunoMapper'
+import PlanoModal from '../features/intervencao/PlanoModal'
+import { textoDoPlano } from '../features/intervencao/planoTexto'
 
 import {
   decodificarEscolaridade,
@@ -20,7 +24,13 @@ const BADGE_RISCO: Record<string, { label: string; classe: string }> = {
 
 export default function AlunoDetalhe() {
   const { id } = useParams()
-  const { alunosCadastrados, loading } = useStore()
+  const navigate = useNavigate()
+  const { alunosCadastrados, plans, setPlan, refresh, loading } = useStore()
+
+  const [editandoAluno, setEditandoAluno] = useState(false)
+  const [editandoPlano, setEditandoPlano] = useState(false)
+  const [calculando, setCalculando] = useState(false)
+  const [mensagem, setMensagem] = useState<{ texto: string; erro: boolean } | null>(null)
 
   const aluno = alunosCadastrados.find(
     a => String(a.id) === id
@@ -70,6 +80,48 @@ export default function AlunoDetalhe() {
           ? 'green'
           : ''
 
+  const plano = plans[String(aluno.id)]
+  const textoPlano = textoDoPlano(plano)
+
+  const salvarPlano = async (novo: { status: string; owners: string[] }) => {
+    const r = await setPlan(String(aluno.id), novo)
+    if (r.error) return r.error
+    setEditandoPlano(false)
+  }
+
+  const calcularIA = async () => {
+    setCalculando(true)
+    setMensagem(null)
+
+    try {
+      const res = await api.preverRisco(alunoApiParaPredicao(aluno))
+      await refresh()
+      setMensagem({
+        erro: false,
+        texto: `Avaliação atualizada: nível ${res.resultado.nivel_alerta} (${res.resultado.probabilidade_percentual.toFixed(1)}%).`
+      })
+    } catch (err) {
+      setMensagem({ erro: true, texto: `Erro ao calcular IA: ${(err as Error).message}` })
+    } finally {
+      setCalculando(false)
+    }
+  }
+
+  const excluir = async () => {
+    const confirmar = window.confirm(
+      `Tem certeza que deseja excluir o cadastro do estudante "${aluno.nome}" (RA: ${aluno.numero_matricula})?`
+    )
+    if (!confirmar) return
+
+    try {
+      await api.excluirAluno(aluno.id)
+      // A lista de cadastro recarrega os dados ao abrir.
+      navigate('/cadastro')
+    } catch (err) {
+      setMensagem({ erro: true, texto: `Erro ao excluir: ${(err as Error).message}` })
+    }
+  }
+
   const simNao = (valor: unknown) => {
     if (valor == null || valor === '') return 'Não informado'
     return Number(valor) === 1 ? 'Sim' : 'Não'
@@ -106,7 +158,30 @@ export default function AlunoDetalhe() {
             Cadastro individual · PostgreSQL · Farol.IA
           </p>
         </div>
+
+        <div className="actions" style={{ marginLeft: 'auto' }}>
+          <button type="button" className="btn teal" onClick={calcularIA} disabled={calculando}>
+            <Icon name="spark" />
+            {calculando
+              ? 'Calculando…'
+              : aluno.ia_nivel_alerta
+                ? 'Recalcular IA'
+                : 'Calcular risco (IA)'}
+          </button>
+          <button type="button" className="btn" onClick={() => setEditandoAluno(true)}>
+            Editar
+          </button>
+          <button type="button" className="btn" style={{ color: 'var(--red)' }} onClick={excluir}>
+            Excluir
+          </button>
+        </div>
       </div>
+
+      {mensagem && (
+        <div className={'form-msg ' + (mensagem.erro ? 'err' : 'ok')}>
+          {mensagem.texto}
+        </div>
+      )}
 
       {/* Indicadores */}
       <section className="card stat-strip">
@@ -370,6 +445,42 @@ export default function AlunoDetalhe() {
         )}
       </section>
 
+      {/* Plano de intervenção */}
+      <section className="card">
+        <div className="card-head">
+          <div>
+            <h3>Plano de acompanhamento</h3>
+            <p className="muted small">
+              Intervenção registrada no banco · revisar com estudante e equipe.
+            </p>
+          </div>
+          <span className={'tag ' + (plano ? 'Menor' : 'Elevado')}>
+            {plano ? 'Em andamento' : 'Sem plano'}
+          </span>
+        </div>
+
+        {!plano && (
+          <p className="muted small">
+            Este estudante ainda não possui plano de acompanhamento.
+          </p>
+        )}
+
+        {plano && textoPlano && <p className="plan-text">{textoPlano}</p>}
+
+        {plano && !textoPlano && (
+          <p className="muted small">
+            Plano registrado sem descrição. Use “Editar plano” para detalhar.
+          </p>
+        )}
+
+        <div className="plan-foot">
+          <span className="muted small">Planos são sugestões, não rótulos.</span>
+          <button type="button" className="link plain" onClick={() => setEditandoPlano(true)}>
+            {plano ? 'Editar plano →' : 'Criar plano →'}
+          </button>
+        </div>
+      </section>
+
       {/* Aviso */}
       <div className="notice">
         <Icon name="info" />
@@ -384,6 +495,23 @@ export default function AlunoDetalhe() {
         <span>Farol.IA · FATEC Jacareí</span>
       </footer>
 
+      {editandoAluno && (
+        <NovoEstudanteForm
+          alunoEdicao={aluno}
+          onClose={() => {
+            setEditandoAluno(false)
+            refresh()
+          }}
+        />
+      )}
+
+      {editandoPlano && (
+        <PlanoModal
+          plan={plano}
+          onSave={salvarPlano}
+          onClose={() => setEditandoPlano(false)}
+        />
+      )}
     </main>
   )
 }

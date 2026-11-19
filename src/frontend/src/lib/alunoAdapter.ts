@@ -79,6 +79,8 @@ export function alunoApiParaStudent(
 ): Student {
   return {
     id: String(aluno.id),
+    nome: aluno.nome,
+    matricula: aluno.numero_matricula,
     turmaId: aluno.turma_id == null
       ? undefined
       : String(aluno.turma_id),
@@ -98,7 +100,7 @@ export function alunoApiParaStudent(
 
     risk: converterRisco(aluno.ia_nivel_alerta),
 
-    // Será sincronizado com a API de intervenções depois.
+    // Sincronizado com a API de intervenções no refresh() da store.
     hasPlan: false,
 
     renda: converterRenda(aluno.q006_renda_familiar),

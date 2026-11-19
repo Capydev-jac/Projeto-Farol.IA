@@ -1,18 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import Icon from '../components/Icon'
-import Modal from '../components/Modal'
 import NovoEstudanteForm from '../features/cadastro/NovoEstudanteForm'
 import { useStore } from '../store'
 import { api, type AlunoApi } from '../services/api'
 import { alunoApiParaPredicao } from '../features/cadastro/alunoMapper'
 import {
-  decodificarEscolaridade,
-  decodificarOcupacao,
   decodificarRenda,
   decodificarBens,
   decodificarFaixaEtaria
 } from '../features/cadastro/formOptions'
-import { linhasModelo } from '../features/cadastro/importacaoAlunos'
 import { downloadCSV } from '../lib/utils'
 import CadastroActions from '../features/cadastro/Cadastro'
 import { useNavigate } from 'react-router-dom'
@@ -38,9 +34,7 @@ export default function CadastroAlunos() {
   const [riscoFiltro, setRiscoFiltro] = useState('')
   const [sexoFiltro, setSexoFiltro] = useState('')
 
-  // Modais e seleções
-  const [modalNovo, setModalNovo] = useState(false)
-  const [modalFicha, setModalFicha] = useState<AlunoApi | null>(null)
+  // Edição e seleções
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [calculandoIds, setCalculandoIds] = useState<Set<number>>(new Set())
   const [executandoLote, setExecutandoLote] = useState(false)
@@ -130,17 +124,6 @@ export default function CadastroAlunos() {
       const res = await api.preverRisco(payload)
       await refresh()
       notificar(`Predição calculada com sucesso para ${aluno.nome}! Nível: ${res.resultado.nivel_alerta} (${res.resultado.probabilidade_percentual.toFixed(1)}%).`)
-      if (modalFicha?.id === aluno.id) {
-        setModalFicha(prev =>
-          prev
-            ? {
-              ...prev,
-              ia_nivel_alerta: res.resultado.nivel_alerta,
-              ia_probabilidade_risco: res.resultado.probabilidade_percentual
-            }
-            : prev
-        )
-      }
     } catch (err) {
       notificar(`Erro ao calcular IA para ${aluno.nome}: ${(err as Error).message}`, true)
     } finally {
@@ -197,7 +180,6 @@ export default function CadastroAlunos() {
     try {
       await api.excluirAluno(aluno.id)
       await refresh()
-      if (modalFicha?.id === aluno.id) setModalFicha(null)
       notificar(`Estudante "${aluno.nome}" excluído com sucesso.`)
     } catch (err) {
       notificar(`Erro ao excluir: ${(err as Error).message}`, true)
@@ -261,40 +243,8 @@ export default function CadastroAlunos() {
           <div className="eyebrow">GESTÃO DE ESTUDANTES · BANCO DE DADOS FAROL.IA</div>
           <h1>Cadastro de Alunos</h1>
           <p className="sub">
-            Módulo oficial de registro socioeconômico. Estruturado conforme as 15 variáveis preditivas do LightGBM (ENEM 2023) e armazenado no PostgreSQL.
+            Módulo oficial de registro socioeconômico.
           </p>
-        </div>
-
-        <div className="actions">
-          <button
-            type="button"
-            className="btn"
-            onClick={() => downloadCSV('modelo-importacao-farol-ia.csv', linhasModelo())}
-            title="Baixar planilha de exemplo para preenchimento em lote"
-          >
-            <Icon name="download" />
-            Modelo CSV
-          </button>
-
-          <button
-            type="button"
-            className="btn"
-            onClick={exportarCSV}
-            disabled={!filtrados.length}
-            title="Exportar alunos listados para CSV"
-          >
-            <Icon name="download" />
-            Exportar {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
-          </button>
-
-          <button
-            type="button"
-            className="btn teal"
-            onClick={() => setModalNovo(true)}
-          >
-            <Icon name="plus" />
-            Novo Aluno
-          </button>
         </div>
       </div>
 
@@ -351,7 +301,20 @@ export default function CadastroAlunos() {
 
       {/* Barra de ferramentas e ações secundárias */}
       <div className="toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <CadastroActions compact />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <CadastroActions compact />
+
+          <button
+            type="button"
+            className="btn"
+            onClick={exportarCSV}
+            disabled={!filtrados.length}
+            title="Exportar alunos listados para CSV"
+          >
+            <Icon name="download" />
+            Exportar {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+          </button>
+        </div>
 
         {pendentes > 0 && (
           <button
@@ -469,7 +432,7 @@ export default function CadastroAlunos() {
               <tr>
                 <td colSpan={8} className="empty">
                   {alunosCadastrados.length === 0
-                    ? 'Nenhum estudante cadastrado no banco de dados ainda. Clique em "Novo Aluno" para começar.'
+                    ? 'Nenhum estudante cadastrado no banco de dados ainda. Clique em "Cadastrar estudante" para começar.'
                     : 'Nenhum estudante corresponde aos filtros selecionados.'}
                 </td>
               </tr>
@@ -496,7 +459,7 @@ export default function CadastroAlunos() {
                       type="button"
                       className="link plain"
                       style={{ textAlign: 'left', fontWeight: 600, fontSize: 13, color: 'var(--ink)' }}
-                      onClick={() => setModalFicha(a)}
+                      onClick={() => navigate(`/alunos/${a.id}`)}
                     >
                       {a.nome}
                     </button>
@@ -577,7 +540,7 @@ export default function CadastroAlunos() {
                         type="button"
                         className="btn sm"
                         onClick={() => navigate(`/alunos/${a.id}`)}
-                        title="Ver ficha completa do estudante"
+                        title="Abrir a ficha completa do estudante"
                       >
                         Detalhes
                       </button>
@@ -631,16 +594,6 @@ export default function CadastroAlunos() {
         </div>
       </section>
 
-      {/* Modal de Novo Aluno */}
-      {modalNovo && (
-        <NovoEstudanteForm
-          onClose={() => {
-            setModalNovo(false)
-            refresh()
-          }}
-        />
-      )}
-
       {/* Modal de Edição do Aluno */}
       {alunoEdicao && (
         <NovoEstudanteForm
@@ -650,222 +603,6 @@ export default function CadastroAlunos() {
             refresh()
           }}
         />
-      )}
-
-      {/* Modal Ficha Completa do Aluno */}
-      {modalFicha && (
-        <Modal
-          title={`Ficha do Estudante: ${modalFicha.nome}`}
-          subtitle={`RA / Matrícula: ${modalFicha.numero_matricula} · Código no banco: #${modalFicha.id}`}
-          size="lg"
-          onClose={() => setModalFicha(null)}
-          footer={
-            <>
-              <div className="foot-info">
-                Cadastrado em: {modalFicha.data_cadastro ? new Date(modalFicha.data_cadastro).toLocaleString('pt-BR') : 'Data não informada'}
-              </div>
-              <div className="foot-actions">
-                <button
-                  type="button"
-                  className="btn"
-                  style={{ color: 'var(--red)' }}
-                  onClick={() => excluirEstudante(modalFicha)}
-                >
-                  Excluir Aluno
-                </button>
-                <button
-                  type="button"
-                  className="btn teal"
-                  onClick={() => calcularIAIndividual(modalFicha)}
-                  disabled={calculandoIds.has(modalFicha.id)}
-                >
-                  <Icon name="spark" />
-                  {modalFicha.ia_nivel_alerta ? 'Recalcular IA' : 'Calcular Risco (IA)'}
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setModalFicha(null)}
-                >
-                  Fechar
-                </button>
-              </div>
-            </>
-          }
-        >
-          <div className="form" style={{ gap: 16 }}>
-            {/* Bloco de Predição da IA */}
-            {modalFicha.ia_nivel_alerta ? (
-              <div
-                className={`risk-card ${
-                  modalFicha.ia_nivel_alerta === 'CRITICO'
-                    ? 'red'
-                    : modalFicha.ia_nivel_alerta === 'ATENCAO'
-                    ? 'amber'
-                    : 'green'
-                }`}
-              >
-                <div>
-                  <span className="risk-label">Probabilidade de Risco</span>
-                  <span className="risk-pct">
-                    {modalFicha.ia_probabilidade_risco != null
-                      ? `${Number(modalFicha.ia_probabilidade_risco).toFixed(1)}%`
-                      : '—'}
-                  </span>
-                </div>
-                <div>
-                  <span
-                    className={`tag big ${BADGE_RISCO[modalFicha.ia_nivel_alerta]?.classe || ''}`}
-                    style={{ marginLeft: 0 }}
-                  >
-                    Nível {BADGE_RISCO[modalFicha.ia_nivel_alerta]?.label || modalFicha.ia_nivel_alerta}
-                  </span>
-                  <p>{modalFicha.ia_recomendacao || 'Sem recomendação registrada.'}</p>
-                  <span className="risk-model">
-                    Modelo: {modalFicha.ia_versao_modelo || 'LightGBM Top 15'} · Data da predição:{' '}
-                    {modalFicha.ia_data_predicao
-                      ? new Date(modalFicha.ia_data_predicao).toLocaleString('pt-BR')
-                      : '—'}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="ia-hint">
-                <Icon name="spark" size={24} />
-                <div style={{ flex: 1 }}>
-                  <b>Classificação de IA Pendente</b>
-                  <p className="muted small">
-                    Os 15 atributos necessários já estão no banco de dados. Clique em &quot;Calcular Risco (IA)&quot; para estimar a defasagem.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="btn teal sm"
-                  onClick={() => calcularIAIndividual(modalFicha)}
-                  disabled={calculandoIds.has(modalFicha.id)}
-                >
-                  Calcular agora
-                </button>
-              </div>
-            )}
-
-            {/* Seção 1: Identificação & Turma */}
-            <section className="form-section">
-              <h4 className="sec-title">
-                <span className="sec-num">1</span>
-                Identificação & Matrícula
-              </h4>
-              <div className="form-grid">
-                <div>
-                  <span className="muted small">Nome Completo:</span>
-                  <div><b>{modalFicha.nome}</b></div>
-                </div>
-                <div>
-                  <span className="muted small">RA / Número de Matrícula:</span>
-                  <div><code>{modalFicha.numero_matricula}</code></div>
-                </div>
-                <div>
-                  <span className="muted small">Turma Vinculada:</span>
-                  <div>{modalFicha.turma ? `${modalFicha.turma} (${modalFicha.turno || 'Turno não informado'})` : 'Sem turma associada'}</div>
-                </div>
-                <div>
-                  <span className="muted small">Data do Cadastro:</span>
-                  <div>{modalFicha.data_cadastro ? new Date(modalFicha.data_cadastro).toLocaleString('pt-BR') : '—'}</div>
-                </div>
-              </div>
-            </section>
-
-            {/* Seção 2: Perfil Demográfico */}
-            <section className="form-section">
-              <h4 className="sec-title">
-                <span className="sec-num">2</span>
-                Perfil Demográfico
-              </h4>
-              <div className="form-grid">
-                <div>
-                  <span className="muted small">Faixa Etária (TP_FAIXA_ETARIA):</span>
-                  <div><b>{decodificarFaixaEtaria(modalFicha.tp_faixa_etaria)}</b> (Código: {modalFicha.tp_faixa_etaria})</div>
-                </div>
-                <div>
-                  <span className="muted small">Sexo (TP_SEXO):</span>
-                  <div><b>{modalFicha.tp_sexo === 'M' ? 'Masculino (M)' : modalFicha.tp_sexo === 'F' ? 'Feminino (F)' : '—'}</b></div>
-                </div>
-              </div>
-            </section>
-
-            {/* Seção 3: Contexto Familiar e Renda */}
-            <section className="form-section">
-              <h4 className="sec-title">
-                <span className="sec-num">3</span>
-                Contexto Familiar e Renda
-              </h4>
-              <div className="form-grid">
-                <div>
-                  <span className="muted small">Escolaridade do Pai (Q001):</span>
-                  <div><b>{decodificarEscolaridade(modalFicha.q001_escolaridade_pai)}</b> (Letra: {modalFicha.q001_escolaridade_pai || '—'})</div>
-                </div>
-                <div>
-                  <span className="muted small">Escolaridade da Mãe (Q002):</span>
-                  <div><b>{decodificarEscolaridade(modalFicha.q002_escolaridade_mae)}</b> (Letra: {modalFicha.q002_escolaridade_mae || '—'})</div>
-                </div>
-                <div>
-                  <span className="muted small">Ocupação do Pai (Q003):</span>
-                  <div><b>{decodificarOcupacao(modalFicha.q003_ocupacao_pai)}</b> (Letra: {modalFicha.q003_ocupacao_pai || '—'})</div>
-                </div>
-                <div>
-                  <span className="muted small">Ocupação da Mãe (Q004):</span>
-                  <div><b>{decodificarOcupacao(modalFicha.q004_ocupacao_mae)}</b> (Letra: {modalFicha.q004_ocupacao_mae || '—'})</div>
-                </div>
-                <div>
-                  <span className="muted small">Moradores na Residência (Q005):</span>
-                  <div><b>{modalFicha.q005_tamanho_familia ?? '—'} pessoa(s)</b></div>
-                </div>
-                <div>
-                  <span className="muted small">Renda Familiar Mensal (Q006):</span>
-                  <div><b>{decodificarRenda(modalFicha.q006_renda_familiar)}</b></div>
-                </div>
-              </div>
-            </section>
-
-            {/* Seção 4: Infraestrutura, Bens e Conectividade */}
-            <section className="form-section">
-              <h4 className="sec-title">
-                <span className="sec-num">4</span>
-                Infraestrutura, Bens e Conectividade
-              </h4>
-              <div className="form-grid">
-                <div>
-                  <span className="muted small">Quartos para dormir (Q009):</span>
-                  <div><b>{decodificarBens(modalFicha.q009_quartos)}</b> (Letra: {modalFicha.q009_quartos || '—'})</div>
-                </div>
-                <div>
-                  <span className="muted small">Máquinas de lavar roupa (Q014):</span>
-                  <div><b>{decodificarBens(modalFicha.q014_maquina_lavar)}</b> (Letra: {modalFicha.q014_maquina_lavar || '—'})</div>
-                </div>
-                <div>
-                  <span className="muted small">Televisores em cores (Q019):</span>
-                  <div><b>{decodificarBens(modalFicha.q019_televisores)}</b> (Letra: {modalFicha.q019_televisores || '—'})</div>
-                </div>
-                <div>
-                  <span className="muted small">Telefones celulares (Q022):</span>
-                  <div><b>{decodificarBens(modalFicha.q022_celulares)}</b> (Letra: {modalFicha.q022_celulares || '—'})</div>
-                </div>
-                <div>
-                  <span className="muted small">Veículo próprio (carro ou moto):</span>
-                  <div><b>{modalFicha.veiculo_proprio === 1 ? 'Sim (1)' : 'Não (0)'}</b></div>
-                </div>
-                <div>
-                  <span className="muted small">Geladeira / Freezer:</span>
-                  <div><b>{modalFicha.refrigeracao === 1 ? 'Sim (1)' : 'Não (0)'}</b></div>
-                </div>
-                <div className="span-2">
-                  <span className="muted small">Conectividade (computador ou internet):</span>
-                  <div><b>{modalFicha.conectividade === 1 ? 'Sim (1)' : 'Não (0)'}</b></div>
-                </div>
-              </div>
-            </section>
-          </div>
-        </Modal>
       )}
     </main>
   )
