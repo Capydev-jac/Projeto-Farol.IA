@@ -124,36 +124,65 @@ export default function Turmas() {
           const { ts, criticos, atencao, regulares, pendentes } = stats(t)
           return (
             <section className="card turma" key={t.id}>
-              <div className="card-head">
+              <div className="turma-head">
+                <span className="turma-icon" aria-hidden="true">
+                  <Icon name="class" size={18} />
+                </span>
                 <div>
                   <h3>{t.nome.replace('ª ', 'ª Série ')}</h3>
                   <p className="muted small">{t.turno}</p>
                 </div>
-                <Icon name="class" size={18} />
               </div>
 
               <div className="turma-stats">
-                <div><b>{ts.length}</b><small className="muted">estudantes</small></div>
-                <div><b className="red">{criticos}</b><small className="muted">risco crítico ({pct(criticos, ts.length)}%)</small></div>
-                <div><b className="amber">{atencao}</b><small className="muted">em atenção</small></div>
+                <div>
+                  <b>{ts.length}</b>
+                  <small>estudantes</small>
+                </div>
+                <div>
+                  <b className={criticos ? 'red' : ''}>{criticos}</b>
+                  <small>risco crítico · {pct(criticos, ts.length)}%</small>
+                </div>
+                <div>
+                  <b className={atencao ? 'amber' : ''}>{atencao}</b>
+                  <small>em atenção</small>
+                </div>
               </div>
 
-              <p className="small muted">
+              {ts.length > 0 && (
+                <div
+                  className="turma-bar"
+                  role="img"
+                  aria-label={`${criticos} críticos, ${atencao} em atenção, ${regulares} regulares, ${pendentes} pendentes`}
+                >
+                  <i className="c" style={{ flex: criticos }} />
+                  <i className="a" style={{ flex: atencao }} />
+                  <i className="r" style={{ flex: regulares }} />
+                  <i className="p" style={{ flex: pendentes }} />
+                </div>
+              )}
+
+              <p className="turma-note">
                 {ts.length
                   ? `${regulares} regular(es) · ${pendentes} com predição pendente`
                   : 'Sem estudantes cadastrados nesta turma.'}
               </p>
 
               <div className="turma-actions">
-                <Link className="btn sm" to={`/cadastro?turma=${encodeURIComponent(String(t.id))}`}>
+                <Link
+                  className="link turma-open"
+                  to={`/cadastro?turma=${encodeURIComponent(String(t.id))}`}
+                >
                   Ver estudantes
                 </Link>
-                <button className="btn sm" type="button" onClick={() => relatorio(t)} disabled={!ts.length}>
-                  <Icon name="download" size={13} /> Relatório
-                </button>
-                <button className="btn sm" type="button" onClick={() => predicoes(t)} disabled={!ts.length}>
-                  <Icon name="download" size={13} /> Predições
-                </button>
+                <div className="turma-dl">
+                  <button type="button" onClick={() => relatorio(t)} disabled={!ts.length}>
+                    <Icon name="download" size={13} /> Relatório
+                  </button>
+                  <button type="button" onClick={() => predicoes(t)} disabled={!ts.length}>
+                    <Icon name="download" size={13} /> Predições
+                  </button>
+                </div>
               </div>
             </section>
           )

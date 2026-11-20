@@ -1,17 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import Icon from '../components/Icon'
-import NovoEstudanteForm from '../features/cadastro/NovoEstudanteForm'
 import { useStore } from '../store'
 import { api, type AlunoApi } from '../services/api'
 import { alunoApiParaPredicao } from '../features/cadastro/alunoMapper'
-import {
-  decodificarRenda,
-  decodificarBens,
-  decodificarFaixaEtaria
-} from '../features/cadastro/formOptions'
 import { downloadCSV } from '../lib/utils'
 import CadastroActions from '../features/cadastro/Cadastro'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 // Visual styling helper for AI alerts
 const BADGE_RISCO: Record<string, { label: string; classe: string }> = {
@@ -20,8 +14,11 @@ const BADGE_RISCO: Record<string, { label: string; classe: string }> = {
   REGULAR: { label: 'Regular', classe: 'Menor' }
 }
 
+// Prioridade na listagem: crítico primeiro, pendente por último
+const ORDEM_RISCO: Record<string, number> = { CRITICO: 0, ATENCAO: 1, REGULAR: 2 }
+
 export default function CadastroAlunos() {
-  const { alunosCadastrados, turmas, refresh, loading } = useStore()
+  const { alunosCadastrados, turmas, plans, refresh, loading } = useStore()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -33,15 +30,18 @@ export default function CadastroAlunos() {
   const [busca, setBusca] = useState('')
   // Permite abrir já filtrado: /cadastro?turma=<id> (usado na tela de Turmas)
   const [turmaFiltro, setTurmaFiltro] = useState(searchParams.get('turma') ?? '')
+  const turmaDaUrl = searchParams.get('turma') ?? ''
+  // Mantém o filtro em sincronia se a URL mudar (ex.: voltar de Turmas para outra turma)
+  useEffect(() => {
+    setTurmaFiltro(turmaDaUrl)
+  }, [turmaDaUrl])
   const [riscoFiltro, setRiscoFiltro] = useState('')
-  const [sexoFiltro, setSexoFiltro] = useState('')
 
   // Edição e seleções
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [calculandoIds, setCalculandoIds] = useState<Set<number>>(new Set())
   const [executandoLote, setExecutandoLote] = useState(false)
   const [progressoLote, setProgressoLote] = useState<{ total: number; concluidos: number } | null>(null)
-  const [alunoEdicao, setAlunoEdicao] = useState<AlunoApi | null>(null)
 
   // Mensagens de feedback
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null)
@@ -89,14 +89,15 @@ export default function CadastroAlunos() {
         }
       }
 
-      // Filtro de sexo
-      if (sexoFiltro) {
-        if (a.tp_sexo !== sexoFiltro) return false
-      }
-
       return true
+    }).sort((x, y) => {
+      const ox = x.ia_nivel_alerta ? ORDEM_RISCO[x.ia_nivel_alerta] : 3
+      const oy = y.ia_nivel_alerta ? ORDEM_RISCO[y.ia_nivel_alerta] : 3
+      if (ox !== oy) return ox - oy
+      const dp = Number(y.ia_probabilidade_risco ?? 0) - Number(x.ia_probabilidade_risco ?? 0)
+      return dp || (x.nome || '').localeCompare(y.nome || '', 'pt-BR')
     })
-  }, [alunosCadastrados, busca, turmaFiltro, riscoFiltro, sexoFiltro])
+  }, [alunosCadastrados, busca, turmaFiltro, riscoFiltro])
 
   // Seleção múltipla
   const toggleSelect = (id: number) => {
@@ -174,20 +175,6 @@ export default function CadastroAlunos() {
     notificar(`Processamento concluído: ${sucessos} calculado(s) com sucesso${falhas > 0 ? `, ${falhas} falha(s)` : ''}.`)
   }
 
-  // Excluir aluno
-  const excluirEstudante = async (aluno: AlunoApi) => {
-    const confirmar = window.confirm(`Tem certeza que deseja excluir o cadastro do estudante "${aluno.nome}" (RA: ${aluno.numero_matricula})?`)
-    if (!confirmar) return
-
-    try {
-      await api.excluirAluno(aluno.id)
-      await refresh()
-      notificar(`Estudante "${aluno.nome}" excluído com sucesso.`)
-    } catch (err) {
-      notificar(`Erro ao excluir: ${(err as Error).message}`, true)
-    }
-  }
-
   // Exportar dados cadastrais para CSV
   const exportarCSV = () => {
     const lista = selectedIds.size > 0
@@ -237,30 +224,30 @@ export default function CadastroAlunos() {
     downloadCSV('alunos-cadastrados-farol-ia.csv', [cabecalho, ...linhas])
   }
 
+  const STATS = [
+    { key: '', label: 'alunos cadastrados', valor: total, cls: '' },
+    { key: 'CRITICO', label: 'risco crítico', valor: criticos, cls: 'red' },
+    { key: 'ATENCAO', label: 'em atenção', valor: atencao, cls: 'amber' },
+    { key: 'REGULAR', label: 'situação regular', valor: regulares, cls: 'teal' },
+    { key: 'PENDENTE', label: 'predição pendente', valor: pendentes, cls: '' }
+  ]
+
   return (
     <main className="page">
       {/* Cabeçalho da página */}
       <div className="page-head">
         <div>
-          <div className="eyebrow">GESTÃO DE ESTUDANTES · BANCO DE DADOS FAROL.IA</div>
-          <h1>Cadastro de Alunos</h1>
+          <div className="eyebrow">GESTÃO DE ESTUDANTES</div>
+          <h1>Estudantes</h1>
           <p className="sub">
-            Módulo oficial de registro socioeconômico. Estruturado conforme as 15 variáveis preditivas do LightGBM (ENEM 2023) e armazenado no PostgreSQL.
+            Acompanhe o risco de cada estudante e abra a ficha para ver os detalhes.
           </p>
         </div>
       </div>
 
       {/* Notificações e feedback */}
-      {mensagemSucesso && (
-        <div className="form-msg ok" style={{ margin: 0 }}>
-          {mensagemSucesso}
-        </div>
-      )}
-      {mensagemErro && (
-        <div className="form-msg err" style={{ margin: 0 }}>
-          {mensagemErro}
-        </div>
-      )}
+      {mensagemSucesso && <div className="form-msg ok">{mensagemSucesso}</div>}
+      {mensagemErro && <div className="form-msg err">{mensagemErro}</div>}
 
       {/* Barra de progresso para lote */}
       {executandoLote && progressoLote && (
@@ -275,35 +262,32 @@ export default function CadastroAlunos() {
         </div>
       )}
 
-      {/* Cartões de estatísticas (Stat Strip) */}
-      <section className="card stat-strip">
-        <div>
-          <b>{total}</b>
-          <span>alunos cadastrados</span>
-        </div>
-        <div>
-          <b className="red">{criticos}</b>
-          <span>risco crítico</span>
-        </div>
-        <div>
-          <b className="amber">{atencao}</b>
-          <span>em atenção</span>
-        </div>
-        <div>
-          <b className="teal">{regulares}</b>
-          <span>situação regular</span>
-        </div>
-        <div>
-          <b style={{ color: pendentes > 0 ? '#8a6d3b' : 'var(--muted)' }}>
-            {pendentes}
-          </b>
-          <span>predição pendente</span>
-        </div>
+      {/* Indicadores (clicáveis: filtram a lista por situação) */}
+      <section className="card lista-stats">
+        {STATS.map(st =>
+          st.key ? (
+            <button
+              type="button"
+              key={st.label}
+              className={'lista-stat' + (riscoFiltro === st.key ? ' on' : '')}
+              aria-pressed={riscoFiltro === st.key}
+              onClick={() => setRiscoFiltro(riscoFiltro === st.key ? '' : st.key)}
+            >
+              <b className={st.cls}>{st.valor}</b>
+              <span>{st.label}</span>
+            </button>
+          ) : (
+            <div key={st.label} className="lista-stat static">
+              <b>{st.valor}</b>
+              <span>{st.label}</span>
+            </div>
+          )
+        )}
       </section>
 
-      {/* Barra de ferramentas e ações secundárias */}
-      <div className="toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Ações */}
+      <div className="toolbar lista-toolbar">
+        <div className="actions">
           <CadastroActions compact />
 
           <button
@@ -341,11 +325,7 @@ export default function CadastroAlunos() {
             onChange={(e) => setBusca(e.target.value)}
           />
           {busca && (
-            <button
-              type="button"
-              className="link plain small"
-              onClick={() => setBusca('')}
-            >
+            <button type="button" className="link plain small" onClick={() => setBusca('')}>
               Limpar
             </button>
           )}
@@ -375,32 +355,20 @@ export default function CadastroAlunos() {
           <option value="REGULAR">Regular</option>
           <option value="PENDENTE">Predição Pendente</option>
         </select>
-
-        <select
-          aria-label="Filtrar por Sexo"
-          value={sexoFiltro}
-          onChange={(e) => setSexoFiltro(e.target.value)}
-        >
-          <option value="">Sexo: Todos</option>
-          <option value="F">Feminino</option>
-          <option value="M">Masculino</option>
-        </select>
       </div>
 
-      {/* Tabela de alunos cadastrados */}
+      {/* Lista de estudantes */}
       <section className="card table-card">
         <div className="tabs">
           <button type="button" className="on">
-            Estudantes Cadastrados
+            Estudantes
             <em>{filtrados.length}</em>
           </button>
 
-          <span className="muted small">
-            Base oficial: tabela <code>alunos</code> · PostgreSQL
-          </span>
+          <span className="muted small">Ordenados por prioridade de risco</span>
         </div>
 
-        <table className="students">
+        <table className="students lista">
           <thead>
             <tr>
               <th style={{ width: 40 }}>
@@ -411,20 +379,18 @@ export default function CadastroAlunos() {
                   aria-label="Selecionar todos os alunos listados"
                 />
               </th>
-              <th>Estudante / RA</th>
+              <th>Estudante</th>
               <th>Turma</th>
-              <th>Perfil</th>
-              <th>Família / Renda</th>
-              <th>Infraestrutura & Bens</th>
-              <th>Avaliação da IA</th>
-              <th style={{ textAlign: 'right' }}>Ações</th>
+              <th>Risco</th>
+              <th>Plano</th>
+              <th style={{ width: 110 }} />
             </tr>
           </thead>
 
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={8} className="empty">
+                <td colSpan={6} className="empty">
                   Carregando lista de alunos cadastrados...
                 </td>
               </tr>
@@ -432,7 +398,7 @@ export default function CadastroAlunos() {
 
             {!loading && filtrados.length === 0 && (
               <tr>
-                <td colSpan={8} className="empty">
+                <td colSpan={6} className="empty">
                   {alunosCadastrados.length === 0
                     ? 'Nenhum estudante cadastrado no banco de dados ainda. Clique em "Cadastrar estudante" para começar.'
                     : 'Nenhum estudante corresponde aos filtros selecionados.'}
@@ -444,10 +410,15 @@ export default function CadastroAlunos() {
               const isSelected = selectedIds.has(a.id)
               const isCalculando = calculandoIds.has(a.id)
               const badge = a.ia_nivel_alerta ? BADGE_RISCO[a.ia_nivel_alerta] : null
+              const temPlano = Boolean(plans[String(a.id)])
 
               return (
-                <tr key={a.id} className={isSelected ? 'selected' : ''}>
-                  <td>
+                <tr
+                  key={a.id}
+                  className={isSelected ? 'selected' : ''}
+                  onClick={() => navigate(`/alunos/${a.id}`)}
+                >
+                  <td onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -457,69 +428,31 @@ export default function CadastroAlunos() {
                   </td>
 
                   <td>
-                    <button
-                      type="button"
-                      className="link plain"
-                      style={{ textAlign: 'left', fontWeight: 600, fontSize: 13, color: 'var(--ink)' }}
-                      onClick={() => navigate(`/alunos/${a.id}`)}
-                    >
-                      {a.nome}
-                    </button>
-                    <div className="muted small">
-                      RA {a.numero_matricula}
-                    </div>
+                    <div className="lista-nome">{a.nome}</div>
+                    <div className="muted small">RA {a.numero_matricula}</div>
                   </td>
 
                   <td>
                     {a.turma ? (
                       <>
-                        <b>{a.turma}</b>
-                        <div className="muted small">{a.turno || 'Turno não informado'}</div>
+                        <div>{a.turma}</div>
+                        {a.turno && <div className="muted small">{a.turno}</div>}
                       </>
                     ) : (
                       <span className="muted small">Sem turma</span>
                     )}
                   </td>
 
-                  <td>
-                    <span>
-                      {a.tp_sexo === 'F' ? 'Feminino' : a.tp_sexo === 'M' ? 'Masculino' : '—'}
-                    </span>
-                    <div className="muted small">
-                      {decodificarFaixaEtaria(a.tp_faixa_etaria)}
-                    </div>
-                  </td>
-
-                  <td>
-                    <div>{decodificarRenda(a.q006_renda_familiar)}</div>
-                    <div className="muted small">
-                      {a.q005_tamanho_familia ? `${a.q005_tamanho_familia} moradores` : 'Família não informada'}
-                    </div>
-                  </td>
-
-                  <td>
-                    <div className="small">
-                      {a.conectividade ? 'Internet ativa' : 'Sem conexão'} · {a.veiculo_proprio ? 'Veículo' : 'Sem veículo'}
-                    </div>
-                    <div className="muted small">
-                      Celulares: {decodificarBens(a.q022_celulares)} · Quartos: {decodificarBens(a.q009_quartos)}
-                    </div>
-                  </td>
-
-                  <td>
+                  <td onClick={(e) => e.stopPropagation()}>
                     {badge ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span className={`tag ${badge.classe}`}>
-                          {badge.label}
-                        </span>
+                      <div className="lista-risco">
+                        <span className={`tag ${badge.classe}`}>{badge.label}</span>
                         {a.ia_probabilidade_risco != null && (
-                          <span className="small muted">
-                            Risco: <b>{Number(a.ia_probabilidade_risco).toFixed(1)}%</b>
-                          </span>
+                          <b>{Number(a.ia_probabilidade_risco).toFixed(1)}%</b>
                         )}
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div className="lista-risco">
                         <span className="muted small">Pendente</span>
                         <button
                           type="button"
@@ -536,36 +469,24 @@ export default function CadastroAlunos() {
                     )}
                   </td>
 
+                  <td>
+                    {temPlano ? (
+                      <span className="tag Menor">Com plano</span>
+                    ) : a.ia_nivel_alerta === 'CRITICO' ? (
+                      <span className="tag Atenção">Sem plano</span>
+                    ) : (
+                      <span className="muted small">—</span>
+                    )}
+                  </td>
+
                   <td style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        className="btn sm"
-                        onClick={() => navigate(`/alunos/${a.id}`)}
-                        title="Abrir a ficha completa do estudante"
-                      >
-                        Detalhes
-                      </button>
-
-                      <button
-                        type="button"
-                        className="btn sm"
-                        onClick={() => setAlunoEdicao(a)}
-                        title="Editar estudante"
-                      >
-                        Editar
-                      </button>
-
-                      <button
-                        type="button"
-                        className="btn sm"
-                        style={{ color: 'var(--red)' }}
-                        onClick={() => excluirEstudante(a)}
-                        title="Excluir estudante do banco"
-                      >
-                        Excluir
-                      </button>
-                    </div>
+                    <Link
+                      className="link lista-open"
+                      to={`/alunos/${a.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Ver ficha <Icon name="arrow" size={13} />
+                    </Link>
                   </td>
                 </tr>
               )
@@ -576,7 +497,7 @@ export default function CadastroAlunos() {
         {/* Rodapé da tabela */}
         <div className="table-foot">
           <span className="muted small">
-            Exibindo {filtrados.length} de {alunosCadastrados.length} estudante(s) cadastrado(s)
+            Exibindo {filtrados.length} de {alunosCadastrados.length} estudante(s)
           </span>
 
           {selectedIds.size > 0 && (
@@ -595,17 +516,6 @@ export default function CadastroAlunos() {
           )}
         </div>
       </section>
-
-      {/* Modal de Edição do Aluno */}
-      {alunoEdicao && (
-        <NovoEstudanteForm
-          alunoEdicao={alunoEdicao}
-          onClose={() => {
-            setAlunoEdicao(null)
-            refresh()
-          }}
-        />
-      )}
     </main>
   )
 }

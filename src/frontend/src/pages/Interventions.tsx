@@ -79,7 +79,7 @@ export default function Interventions() {
       </div>
 
       <div className="notice">
-        Planos são sugestões para conversa com estudante e equipe, não rótulos. Registre responsáveis por cargo ou equipe.
+        Planos são sugestões para conversa com estudante e equipe, não rótulos.
       </div>
 
       <footer className="foot">

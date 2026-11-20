@@ -91,10 +91,6 @@ function Sidebar() {
 
       <div className="sidebar-spacer" />
 
-      <button className="help" type="button">
-        <Icon name="help" />
-        Central de ajuda
-      </button>
     </aside>
   )
 }

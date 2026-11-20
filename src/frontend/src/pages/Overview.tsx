@@ -176,7 +176,7 @@ export default function Overview() {
         <section className="card kpi">
           <div className="kpi-top">Estudantes acompanhados <Icon name="users" /></div>
           <div className="kpi-value">{total.toLocaleString('pt-BR')}</div>
-          <div className="muted small">{nSchools} {nSchools === 1 ? 'escola' : 'escolas'} · {turmaRows.length} {turmaRows.length === 1 ? 'turma' : 'turmas'}</div>
+          <div className="muted small">{turmaRows.length} {turmaRows.length === 1 ? 'turma' : 'turmas'}</div>
         </section>
         <section className="card kpi">
           <div className="kpi-top">Em risco elevado <span className="red"><Icon name="flag" /></span></div>
@@ -192,7 +192,7 @@ export default function Overview() {
               <h3>Um olhar para cada turma</h3>
               <p className="muted small">3ª série · comparado à média nacional do ENEM ({Math.round(NATIONAL)} pts)</p>
             </div>
-            <Link className="link" to="/turmas">Ver turmas ↗</Link>
+            <Link className="link" to="/turmas">Ver turmas</Link>
           </div>
           <table className="mini-table">
             <thead><tr><th>Turma</th><th>Estudantes</th><th>vs. média nacional do ENEM</th><th>Risco elevado</th></tr></thead>
@@ -256,7 +256,7 @@ export default function Overview() {
       </section>
 
       <div className="notice"><Icon name="info" /> Predições são estimativas de apoio à decisão, não destinos individuais. As faixas expressam incerteza ilustrativa; a equipe escolar deve contextualizar cada sinal antes de intervir.</div>
-      <footer className="foot"><span>Dados sintéticos. Métricas, pessoas e resultados do modelo são ilustrativos.</span><span>Farol.IA · FATEC Jacareí</span></footer>
+      <footer className="foot"><span>Dados cadastrados nesta instalação.</span><span>Farol.IA · FATEC Jacareí</span></footer>
     </main>
   )
 }

@@ -122,13 +122,27 @@ export default function AlunoDetalhe() {
     }
   }
 
-  const simNao = (valor: unknown) => {
-    if (valor == null || valor === '') return 'Não informado'
-    return Number(valor) === 1 ? 'Sim' : 'Não'
+  const dataBR = (d?: string | null, comHora = false) => {
+    if (!d) return 'Não informada'
+    const dt = new Date(d)
+    return comHora ? dt.toLocaleString('pt-BR') : dt.toLocaleDateString('pt-BR')
   }
 
+  const iniciais = aluno.nome
+    .split(' ')
+    .filter(Boolean)
+    .map(p => p[0])
+    .filter((_, i, arr) => i === 0 || i === arr.length - 1)
+    .join('')
+    .toUpperCase()
+
+  const probabilidade =
+    aluno.ia_probabilidade_risco != null
+      ? Number(aluno.ia_probabilidade_risco)
+      : null
+
   return (
-    <main className="page">
+    <main className="page ficha">
 
       {/* Navegação */}
       <div className="back">
@@ -140,26 +154,23 @@ export default function AlunoDetalhe() {
       </div>
 
       {/* Cabeçalho */}
-      <div className="student-head">
-        <span className="avatar">
-          <Icon name="user" size={22} />
-        </span>
+      <header className="card ficha-head">
+        <span className="ficha-avatar" aria-hidden="true">{iniciais}</span>
 
-        <div>
-          <h1>{aluno.nome}</h1>
+        <div className="ficha-id">
+          <div className="ficha-title">
+            <h1>{aluno.nome}</h1>
+            {badge && <span className={`tag ${badge.classe}`}>{badge.label}</span>}
+          </div>
 
-          <p className="sub">
-            {aluno.turma || 'Turma não informada'} ·{' '}
-            {aluno.turno || 'Turno não informado'}
-          </p>
-
-          <p className="muted small">
-            <Icon name="shieldsmall" size={12} />
-            Cadastro individual · PostgreSQL · Farol.IA
-          </p>
+          <ul className="ficha-chips">
+            {aluno.turma && <li><Icon name="class" size={13} />{aluno.turma}</li>}
+            {aluno.turno && <li><Icon name="calendar" size={13} />{aluno.turno}</li>}
+            <li><Icon name="clipboard" size={13} />RA {aluno.numero_matricula || '—'}</li>
+          </ul>
         </div>
 
-        <div className="actions" style={{ marginLeft: 'auto' }}>
+        <div className="ficha-actions">
           <button type="button" className="btn teal" onClick={calcularIA} disabled={calculando}>
             <Icon name="spark" />
             {calculando
@@ -169,13 +180,15 @@ export default function AlunoDetalhe() {
                 : 'Calcular risco (IA)'}
           </button>
           <button type="button" className="btn" onClick={() => setEditandoAluno(true)}>
+            <Icon name="edit" size={14} />
             Editar
           </button>
-          <button type="button" className="btn" style={{ color: 'var(--red)' }} onClick={excluir}>
+          <button type="button" className="btn danger" onClick={excluir} aria-label="Excluir cadastro">
+            <Icon name="trash" size={14} />
             Excluir
           </button>
         </div>
-      </div>
+      </header>
 
       {mensagem && (
         <div className={'form-msg ' + (mensagem.erro ? 'err' : 'ok')}>
@@ -183,114 +196,143 @@ export default function AlunoDetalhe() {
         </div>
       )}
 
-      {/* Indicadores */}
-      <section className="card stat-strip">
-        <div>
-          <span className="muted small">RA / Matrícula</span>
-          <b>{aluno.numero_matricula || '—'}</b>
-          <span className="muted small">Identificação escolar</span>
+      <div className="ficha-grid">
+
+        {/* Coluna principal: o que exige ação */}
+        <div className="ficha-col">
+
+          {/* Avaliação da IA */}
+          <section className="card">
+            <div className="card-head">
+              <div>
+                <h3>Avaliação da inteligência artificial</h3>
+                <p className="muted small">Estimativa de apoio à decisão, não um rótulo.</p>
+              </div>
+              <Icon name="spark" />
+            </div>
+
+            {badge ? (
+              <div className={`ficha-risk ${riscoClasse}`}>
+                <div className="ficha-risk-top">
+                  <div>
+                    <span className="ficha-eyebrow">Probabilidade de risco</span>
+                    <span className="ficha-risk-pct">
+                      {probabilidade != null ? `${probabilidade.toFixed(1)}%` : '—'}
+                    </span>
+                  </div>
+                  <span className={`tag big ${badge.classe}`}>{badge.label}</span>
+                </div>
+
+                <div
+                  className="ficha-meter"
+                  role="meter"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={probabilidade ?? 0}
+                  aria-label="Probabilidade de risco"
+                >
+                  <i style={{ width: `${Math.min(100, Math.max(0, probabilidade ?? 0))}%` }} />
+                </div>
+
+                <p className="ficha-reco">
+                  <b>Recomendação</b>
+                  {aluno.ia_recomendacao || 'Nenhuma recomendação registrada.'}
+                </p>
+
+                <p className="ficha-meta">
+                  Modelo {aluno.ia_versao_modelo || 'não informado'} · avaliado em {dataBR(aluno.ia_data_predicao, true)}
+                </p>
+              </div>
+            ) : (
+              <div className="ia-hint">
+                <Icon name="spark" size={24} />
+                <div style={{ flex: 1 }}>
+                  <b>Classificação de IA pendente</b>
+                  <p className="muted small">
+                    Ainda não existe uma avaliação de risco registrada para este estudante.
+                  </p>
+                </div>
+                <button type="button" className="btn teal sm" onClick={calcularIA} disabled={calculando}>
+                  {calculando ? 'Calculando…' : 'Calcular agora'}
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* Plano de acompanhamento */}
+          <section className="card">
+            <div className="card-head">
+              <div>
+                <h3>Plano de acompanhamento</h3>
+                <p className="muted small">Revisar com o estudante e a equipe.</p>
+              </div>
+              <span className={'tag ' + (plano ? 'Menor' : 'Atenção')}>
+                {plano ? plano.status || 'Em andamento' : 'Sem plano'}
+              </span>
+            </div>
+
+            {plano && textoPlano ? (
+              <p className="plan-text ficha-plan">{textoPlano}</p>
+            ) : (
+              <p className="ficha-empty">
+                {plano
+                  ? 'Plano registrado sem descrição. Use “Editar plano” para detalhar.'
+                  : 'Este estudante ainda não possui plano de acompanhamento.'}
+              </p>
+            )}
+
+            <div className="plan-foot">
+              <span className="muted small">Planos são sugestões, não rótulos.</span>
+              <button type="button" className="btn sm" onClick={() => setEditandoPlano(true)}>
+                <Icon name={plano ? 'edit' : 'plus'} size={13} />
+                {plano ? 'Editar plano' : 'Criar plano'}
+              </button>
+            </div>
+          </section>
         </div>
 
-        <div>
-          <span className="muted small">Turma</span>
-          <b>{aluno.turma || '—'}</b>
-          <span className="muted small">Vínculo escolar</span>
-        </div>
+        {/* Coluna lateral: dados de referência */}
+        <aside className="ficha-col">
 
-        <div>
-          <span className="muted small">Avaliação IA</span>
-          {badge ? (
-            <b className={
-              aluno.ia_nivel_alerta === 'CRITICO'
-                ? 'red'
-                : aluno.ia_nivel_alerta === 'ATENCAO'
-                  ? 'amber'
-                  : 'teal'
-            }>
-              {badge.label}
-            </b>
-          ) : (
-            <b className="muted">Pendente</b>
-          )}
-          <span className="muted small">Classificação de risco</span>
-        </div>
-
-        <div>
-          <span className="muted small">Probabilidade</span>
-          <b>
-            {aluno.ia_probabilidade_risco != null
-              ? `${Number(aluno.ia_probabilidade_risco).toFixed(1)}%`
-              : '—'}
-          </b>
-          <span className="muted small">Resultado da IA</span>
-        </div>
-      </section>
-
-      {/* Identificação e perfil */}
-      <div className="grid-detail">
-
-        <section className="card">
-          <div className="card-head">
-            <h3>Identificação escolar</h3>
-            <Icon name="user" />
-          </div>
-
-          <div className="form-grid">
-            <div>
-              <span className="muted small">Nome completo</span>
-              <b>{aluno.nome}</b>
+          <section className="card">
+            <div className="card-head">
+              <h3>Perfil do estudante</h3>
+              <Icon name="user" />
             </div>
 
-            <div>
-              <span className="muted small">RA / Matrícula</span>
-              <b>{aluno.numero_matricula || '—'}</b>
+            <dl className="ficha-fields">
+              <Field label="Faixa etária" value={decodificarFaixaEtaria(aluno.tp_faixa_etaria)} />
+              <Field
+                label="Sexo"
+                value={aluno.tp_sexo === 'F' ? 'Feminino' : aluno.tp_sexo === 'M' ? 'Masculino' : 'Não informado'}
+              />
+              <Field label="Cadastrado em" value={dataBR(aluno.data_cadastro)} />
+            </dl>
+          </section>
+
+          <section className="card">
+            <div className="card-head">
+              <div>
+                <h3>Infraestrutura e bens</h3>
+                <p className="muted small">Condições do domicílio.</p>
+              </div>
+              <Icon name="home" />
             </div>
 
-            <div>
-              <span className="muted small">Turma</span>
-              <b>{aluno.turma || 'Não informada'}</b>
+            <div className="ficha-tiles">
+              <Tile label="Quartos" value={decodificarBens(aluno.q009_quartos)} />
+              <Tile label="Celulares" value={decodificarBens(aluno.q022_celulares)} />
+              <Tile label="Televisores" value={decodificarBens(aluno.q019_televisores)} />
+              <Tile label="Máq. de lavar" value={decodificarBens(aluno.q014_maquina_lavar)} />
             </div>
 
-            <div>
-              <span className="muted small">Turno</span>
-              <b>{aluno.turno || 'Não informado'}</b>
-            </div>
-
-            <div>
-              <span className="muted small">Data do cadastro</span>
-              <b>
-                {aluno.data_cadastro
-                  ? new Date(aluno.data_cadastro).toLocaleDateString('pt-BR')
-                  : 'Não informada'}
-              </b>
-            </div>
-          </div>
-        </section>
-
-        <section className="card">
-          <div className="card-head">
-            <h3>Perfil demográfico</h3>
-            <Icon name="users" />
-          </div>
-
-          <div className="form-grid">
-            <div>
-              <span className="muted small">Faixa etária</span>
-              <b>{decodificarFaixaEtaria(aluno.tp_faixa_etaria)}</b>
-            </div>
-
-            <div>
-              <span className="muted small">Sexo</span>
-              <b>
-                {aluno.tp_sexo === 'F'
-                  ? 'Feminino'
-                  : aluno.tp_sexo === 'M'
-                    ? 'Masculino'
-                    : 'Não informado'}
-              </b>
-            </div>
-          </div>
-        </section>
+            <ul className="ficha-flags">
+              <Flag label="Veículo próprio" valor={aluno.veiculo_proprio} />
+              <Flag label="Refrigeração" valor={aluno.refrigeracao} />
+              <Flag label="Conectividade" valor={aluno.conectividade} />
+            </ul>
+          </section>
+        </aside>
       </div>
 
       {/* Contexto familiar */}
@@ -298,200 +340,26 @@ export default function AlunoDetalhe() {
         <div className="card-head">
           <div>
             <h3>Contexto familiar e renda</h3>
-            <p className="muted small">
-              Informações socioeconômicas registradas no cadastro.
-            </p>
+            <p className="muted small">Informações socioeconômicas do cadastro.</p>
           </div>
           <Icon name="users" />
         </div>
 
-        <div className="form-grid">
-          <div>
-            <span className="muted small">Escolaridade do pai</span>
-            <b>{decodificarEscolaridade(aluno.q001_escolaridade_pai)}</b>
-          </div>
-
-          <div>
-            <span className="muted small">Escolaridade da mãe</span>
-            <b>{decodificarEscolaridade(aluno.q002_escolaridade_mae)}</b>
-          </div>
-
-          <div>
-            <span className="muted small">Ocupação do pai</span>
-            <b>{decodificarOcupacao(aluno.q003_ocupacao_pai)}</b>
-          </div>
-
-          <div>
-            <span className="muted small">Ocupação da mãe</span>
-            <b>{decodificarOcupacao(aluno.q004_ocupacao_mae)}</b>
-          </div>
-
-          <div>
-            <span className="muted small">Tamanho da família</span>
-            <b>
-              {aluno.q005_tamanho_familia != null
-                ? `${aluno.q005_tamanho_familia} pessoa(s)`
-                : 'Não informado'}
-            </b>
-          </div>
-
-          <div>
-            <span className="muted small">Renda familiar</span>
-            <b>{decodificarRenda(aluno.q006_renda_familiar)}</b>
-          </div>
-        </div>
+        <dl className="ficha-fields cols-3">
+          <Field label="Escolaridade do pai" value={decodificarEscolaridade(aluno.q001_escolaridade_pai)} />
+          <Field label="Escolaridade da mãe" value={decodificarEscolaridade(aluno.q002_escolaridade_mae)} />
+          <Field label="Ocupação do pai" value={decodificarOcupacao(aluno.q003_ocupacao_pai)} />
+          <Field label="Ocupação da mãe" value={decodificarOcupacao(aluno.q004_ocupacao_mae)} />
+          <Field
+            label="Tamanho da família"
+            value={aluno.q005_tamanho_familia != null ? `${aluno.q005_tamanho_familia} pessoa(s)` : 'Não informado'}
+          />
+          <Field label="Renda familiar" value={decodificarRenda(aluno.q006_renda_familiar)} />
+        </dl>
       </section>
-
-      {/* Infraestrutura */}
-      <section className="card">
-        <div className="card-head">
-          <div>
-            <h3>Infraestrutura, bens e conectividade</h3>
-            <p className="muted small">
-              Condições de infraestrutura domiciliar informadas.
-            </p>
-          </div>
-          <Icon name="home" />
-        </div>
-
-        <div className="form-grid">
-          <div>
-            <span className="muted small">Quartos para dormir</span>
-            <b>{decodificarBens(aluno.q009_quartos)}</b>
-          </div>
-
-          <div>
-            <span className="muted small">Máquinas de lavar</span>
-            <b>{decodificarBens(aluno.q014_maquina_lavar)}</b>
-          </div>
-
-          <div>
-            <span className="muted small">Televisores</span>
-            <b>{decodificarBens(aluno.q019_televisores)}</b>
-          </div>
-
-          <div>
-            <span className="muted small">Celulares</span>
-            <b>{decodificarBens(aluno.q022_celulares)}</b>
-          </div>
-
-          <div>
-            <span className="muted small">Veículo próprio</span>
-            <b>{simNao(aluno.veiculo_proprio)}</b>
-          </div>
-
-          <div>
-            <span className="muted small">Refrigeração</span>
-            <b>{simNao(aluno.refrigeracao)}</b>
-          </div>
-
-          <div>
-            <span className="muted small">Conectividade</span>
-            <b>{simNao(aluno.conectividade)}</b>
-          </div>
-        </div>
-      </section>
-
-      {/* Avaliação da IA */}
-      <section className="card">
-        <div className="card-head">
-          <div>
-            <h3>Avaliação da inteligência artificial</h3>
-            <p className="muted small">
-              Resultado da análise de risco do estudante.
-            </p>
-          </div>
-          <Icon name="spark" />
-        </div>
-
-        {badge ? (
-          <div className={`risk-card ${riscoClasse}`}>
-            <div>
-              <span className="risk-label">Classificação de risco</span>
-              <span className="risk-pct">{badge.label}</span>
-            </div>
-
-            <div>
-              <span className={`tag big ${badge.classe}`}>
-                {badge.label}
-              </span>
-
-              <p>
-                {aluno.ia_recomendacao ||
-                  'Nenhuma recomendação registrada.'}
-              </p>
-
-              <span className="risk-model">
-                Modelo: {aluno.ia_versao_modelo || 'Não informado'}
-                {' · '}
-                Data da avaliação:{' '}
-                {aluno.ia_data_predicao
-                  ? new Date(aluno.ia_data_predicao).toLocaleString('pt-BR')
-                  : 'Não informada'}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="ia-hint">
-            <Icon name="spark" size={24} />
-            <div style={{ flex: 1 }}>
-              <b>Classificação de IA pendente</b>
-              <p className="muted small">
-                Ainda não existe uma avaliação de risco registrada
-                para este estudante.
-              </p>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* Plano de intervenção */}
-      <section className="card">
-        <div className="card-head">
-          <div>
-            <h3>Plano de acompanhamento</h3>
-            <p className="muted small">
-              Intervenção registrada no banco · revisar com estudante e equipe.
-            </p>
-          </div>
-          <span className={'tag ' + (plano ? 'Menor' : 'Elevado')}>
-            {plano ? 'Em andamento' : 'Sem plano'}
-          </span>
-        </div>
-
-        {!plano && (
-          <p className="muted small">
-            Este estudante ainda não possui plano de acompanhamento.
-          </p>
-        )}
-
-        {plano && textoPlano && <p className="plan-text">{textoPlano}</p>}
-
-        {plano && !textoPlano && (
-          <p className="muted small">
-            Plano registrado sem descrição. Use “Editar plano” para detalhar.
-          </p>
-        )}
-
-        <div className="plan-foot">
-          <span className="muted small">Planos são sugestões, não rótulos.</span>
-          <button type="button" className="link plain" onClick={() => setEditandoPlano(true)}>
-            {plano ? 'Editar plano →' : 'Criar plano →'}
-          </button>
-        </div>
-      </section>
-
-      {/* Aviso */}
-      <div className="notice">
-        <Icon name="info" />
-        Esta ficha apresenta informações efetivamente registradas
-        no banco de dados do Farol.IA. Notas do ENEM, frequência
-        escolar e outros indicadores não cadastrados não são
-        presumidos nem substituídos por valores demonstrativos.
-      </div>
 
       <footer className="foot">
-        <span>Cadastro individual · PostgreSQL</span>
+        <span>Cadastro individual</span>
         <span>Farol.IA · FATEC Jacareí</span>
       </footer>
 
@@ -513,5 +381,48 @@ export default function AlunoDetalhe() {
         />
       )}
     </main>
+  )
+}
+
+/* Campo rótulo/valor empilhado (<dl> semântico) */
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="ficha-field">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  )
+}
+
+/* Quantidade de bens em destaque */
+function Tile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="ficha-tile">
+      <b>{value}</b>
+      <span>{label}</span>
+    </div>
+  )
+}
+
+/* Sim / Não / Não informado com ícone, sem depender só da cor */
+function Flag({ label, valor }: { label: string; valor: unknown }) {
+  const vazio = valor == null || valor === ''
+  const sim = !vazio && Number(valor) === 1
+  const estado = vazio ? 'nd' : sim ? 'yes' : 'no'
+
+  return (
+    <li className={`ficha-flag ${estado}`}>
+      <span>{label}</span>
+      <em>
+        {vazio ? (
+          'Não informado'
+        ) : (
+          <>
+            <Icon name={sim ? 'check' : 'cross'} size={12} />
+            {sim ? 'Sim' : 'Não'}
+          </>
+        )}
+      </em>
+    </li>
   )
 }
