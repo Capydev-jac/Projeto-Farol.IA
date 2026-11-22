@@ -20,6 +20,7 @@ export interface Student {
   esc: number
   infra: number
   custom?: boolean
+  conectividade?: number
 }
 
 export interface Turma {

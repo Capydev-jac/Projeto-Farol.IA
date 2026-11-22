@@ -17,10 +17,17 @@ const BADGE_RISCO: Record<string, { label: string; classe: string }> = {
 // Prioridade na listagem: crítico primeiro, pendente por último
 const ORDEM_RISCO: Record<string, number> = { CRITICO: 0, ATENCAO: 1, REGULAR: 2 }
 
+// Recortes que a Visão geral abre via /cadastro?foco=...
+const FOCOS: Record<string, string> = {
+  semplano: 'Risco crítico sem plano de apoio',
+  atencaosemplano: 'Em atenção, sem plano de apoio',
+  semconectividade: 'Em risco, sem computador ou internet'
+}
+
 export default function CadastroAlunos() {
   const { alunosCadastrados, turmas, plans, refresh, loading } = useStore()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
     refresh()
@@ -28,14 +35,28 @@ export default function CadastroAlunos() {
 
   // Filtros locais
   const [busca, setBusca] = useState('')
-  // Permite abrir já filtrado: /cadastro?turma=<id> (usado na tela de Turmas)
+  // Permite abrir já filtrado: /cadastro?turma=<id> (usado na tela de Turmas e na Visão geral)
   const [turmaFiltro, setTurmaFiltro] = useState(searchParams.get('turma') ?? '')
   const turmaDaUrl = searchParams.get('turma') ?? ''
   // Mantém o filtro em sincronia se a URL mudar (ex.: voltar de Turmas para outra turma)
   useEffect(() => {
     setTurmaFiltro(turmaDaUrl)
   }, [turmaDaUrl])
-  const [riscoFiltro, setRiscoFiltro] = useState('')
+
+  // Idem para o risco: /cadastro?risco=CRITICO | ATENCAO | REGULAR | PENDENTE
+  const riscoDaUrl = searchParams.get('risco') ?? ''
+  const [riscoFiltro, setRiscoFiltro] = useState(riscoDaUrl)
+  useEffect(() => {
+    setRiscoFiltro(riscoDaUrl)
+  }, [riscoDaUrl])
+
+  // Recorte vindo da Visão geral: /cadastro?foco=semplano | atencaosemplano | semconectividade
+  const foco = searchParams.get('foco') ?? ''
+  const limparFoco = () => {
+    const p = new URLSearchParams(searchParams)
+    p.delete('foco')
+    setSearchParams(p)
+  }
 
   // Edição e seleções
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -80,6 +101,15 @@ export default function CadastroAlunos() {
         if (String(a.turma_id ?? '') !== turmaFiltro) return false
       }
 
+      // Recortes da Visão geral
+      if (foco === 'semplano' && !(a.ia_nivel_alerta === 'CRITICO' && !plans[String(a.id)])) return false
+      if (foco === 'atencaosemplano' && !(a.ia_nivel_alerta === 'ATENCAO' && !plans[String(a.id)])) return false
+      if (
+        foco === 'semconectividade' &&
+        !((a.ia_nivel_alerta === 'CRITICO' || a.ia_nivel_alerta === 'ATENCAO') &&
+          a.conectividade != null && Number(a.conectividade) === 0)
+      ) return false
+
       // Filtro de risco
       if (riscoFiltro) {
         if (riscoFiltro === 'PENDENTE') {
@@ -97,7 +127,7 @@ export default function CadastroAlunos() {
       const dp = Number(y.ia_probabilidade_risco ?? 0) - Number(x.ia_probabilidade_risco ?? 0)
       return dp || (x.nome || '').localeCompare(y.nome || '', 'pt-BR')
     })
-  }, [alunosCadastrados, busca, turmaFiltro, riscoFiltro])
+  }, [alunosCadastrados, busca, turmaFiltro, riscoFiltro, foco, plans])
 
   // Seleção múltipla
   const toggleSelect = (id: number) => {
@@ -357,6 +387,18 @@ export default function CadastroAlunos() {
         </select>
       </div>
 
+      {/* Recorte ativo vindo da Visão geral */}
+      {FOCOS[foco] && (
+        <div className="chips-row">
+          <div>
+            <span className="chip">
+              {FOCOS[foco]}{' '}
+              <button type="button" aria-label="Remover filtro" onClick={limparFoco}>×</button>
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Lista de estudantes */}
       <section className="card table-card">
         <div className="tabs">
@@ -472,7 +514,7 @@ export default function CadastroAlunos() {
                   <td>
                     {temPlano ? (
                       <span className="tag Menor">Com plano</span>
-                    ) : a.ia_nivel_alerta === 'CRITICO' ? (
+                    ) : a.ia_nivel_alerta === 'CRITICO' || a.ia_nivel_alerta === 'ATENCAO' ? (
                       <span className="tag Atenção">Sem plano</span>
                     ) : (
                       <span className="muted small">—</span>

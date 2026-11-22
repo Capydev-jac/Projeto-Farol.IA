@@ -294,18 +294,28 @@ select, .search { background: #fff; border: 1px solid var(--line); border-radius
 .diff-track i.pos { background: #3aa99f; } .diff-track i.neg { background: #d9706d; }
 
 .act-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
-.act-card { --tone: var(--muted); border: 1px solid var(--line); border-left: 4px solid var(--tone); border-radius: 10px; padding: 14px; display: grid; gap: 6px; align-content: start; background: #fff; }
+.act-card {
+  --tone: var(--muted);
+  display: flex; flex-direction: column; gap: 6px;
+  background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--tone);
+  border-radius: 10px; padding: 16px;
+}
 .act-card.tone-red { --tone: var(--red); }
 .act-card.tone-amber { --tone: var(--amber); }
-.act-card.tone-teal { --tone: var(--teal); }
-.act-top { font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--tone); }
-.act-num { font-size: 30px; font-weight: 600; line-height: 1.1; color: var(--tone); }
-.act-num small { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 6px; }
-.act-label { font-weight: 600; color: var(--tone); }
+.act-card.tone-slate { --tone: #3f5f7a; }
+
+.act-top { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.act-num { display: flex; align-items: baseline; gap: 6px; font-size: 34px; font-weight: 600; line-height: 1.1; color: var(--tone); }
+.act-num small { font-size: 13px; font-weight: 400; color: var(--muted); }
+.act-label { font-size: 15px; font-weight: 600; line-height: 1.3; min-height: 2.6em; color: var(--ink); }
 .act-where { color: var(--muted); }
 .act-where b { color: var(--ink); }
-.act-cta { justify-self: start; margin-top: 4px; color: var(--tone); }
+.act-cta { margin-top: auto; align-self: flex-start; color: var(--tone); }
 .act-ok { color: #2c7a55; font-weight: 600; }
+
+/* Sem casos: o card fica neutro para não parecer alarme */
+.act-card.is-zero { --tone: #cfdde4; }
+.act-card.is-zero .act-num { color: var(--muted); }
 
 @media (max-width: 900px) {
   .act-grid { grid-template-columns: 1fr; }
@@ -483,6 +493,90 @@ button.lista-stat.on { background: var(--teal-soft); box-shadow: inset 0 -2px 0 
 .lista-risco { display: flex; align-items: center; gap: 8px; }
 .lista-risco b { font-size: 12px; }
 .lista-open { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; }
+
+/* ---- Escala tipográfica ---- */
+:root { --muted: #566b7a; }
+
+/* Mais largura útil e sidebar proporcional */
+.shell { grid-template-columns: 240px 1fr; }
+.page { max-width: 1280px; }
+.ficha { max-width: 1280px; }
+
+body { font-size: 15px; line-height: 1.5; }
+h1 { font-size: 28px; }
+h3, .ficha .card-head h3, .turma-head h3 { font-size: 16px; }
+.modal-head h3 { font-size: 17px; }
+.ficha-title h1 { font-size: 24px; }
+
+/* 14px: textos de leitura e campos */
+.network-select strong,
+.ficha-field dd,
+.ficha-reco,
+.plan-text,
+.lista-nome,
+.seg button,
+.form input,
+.form select,
+.form textarea.plan-textarea { font-size: 14px; }
+
+/* 13px: textos de apoio */
+.small,
+.sub,
+.crumbs,
+.topbar-right,
+.back,
+.link,
+.tag,
+.tag.big,
+.chip,
+.pill,
+.fsel,
+.callout,
+.notice,
+.cta p,
+.mini-table th,
+.students th,
+.risk-list b,
+.ficha-chips li,
+.ficha-flag span,
+.lista-risco b,
+.turma-open,
+.turma-dl button,
+.col-help,
+.form label,
+.form .field { font-size: 13px; }
+
+/* 12px: o menor tamanho permitido (rótulos e metadados) */
+.eyebrow,
+.nav-label,
+.act-top,
+.nav-item em,
+.tabs em,
+.tabs .sort,
+.foot,
+.foot-info,
+.modal-sub,
+.ficha-field dt,
+.ficha-tile span,
+.ficha-eyebrow,
+.ficha-meta,
+.lista-stat span,
+.turma-stats small,
+.turma-note,
+.cmp,
+.signals small,
+.plan small,
+.profile-chips span,
+.risk-label,
+.risk-model,
+.import-stats span,
+.axis { font-size: 12px; }
+.network-select small { font-size: 11px; }
+
+/* Cards "Onde agir agora" */
+.act-label { font-size: 16px; }
+.act-num small { font-size: 14px; }
+
 @media (max-width: 700px) {
   .lista-stats { grid-template-columns: 1fr 1fr; }
   .lista-stat { border-left: 0; border-top: 1px solid var(--line); }

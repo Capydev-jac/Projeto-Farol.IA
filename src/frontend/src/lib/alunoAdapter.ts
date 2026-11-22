@@ -112,6 +112,9 @@ export function alunoApiParaStudent(
 
     infra: converterInfra(aluno),
 
+    conectividade:
+      aluno.conectividade == null ? undefined : Number(aluno.conectividade),
+
     custom: true
   }
 }

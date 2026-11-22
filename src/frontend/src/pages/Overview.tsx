@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from '../components/Icon'
-import { ENEM_BASE, MT_ALERT, SCHOOLS, applyFilters, getDetail } from '../lib/data'
+import { ENEM_BASE, SCHOOLS, applyFilters } from '../lib/data'
 import { downloadCSV, avg, pct } from '../lib/utils'
 import { useStore } from '../store'
 import MoreFilters, { FILTER_LABELS } from '../components/Filters'
@@ -69,23 +69,21 @@ export default function Overview() {
     { label: 'Menor', value: count('Menor'), color: '#0d7c78' },
   ]
 
-  const isLowFreq = (s: Student) =>
-  s.freq > 0 && s.freq < 75
+  const emRisco = (s: Student) => s.risk === 'Elevado' || s.risk === 'Atenção'
+  const isNoPlan = (s: Student) => s.risk === 'Elevado' && !s.hasPlan
+  const isAttNoPlan = (s: Student) => s.risk === 'Atenção' && !s.hasPlan
+  const isNoConnect = (s: Student) => emRisco(s) && s.conectividade === 0
 
-  const isNoPlan = (s: Student) =>
-    s.risk === 'Elevado' && !s.hasPlan
-
-  const isMatNeed = (s: Student) =>
-    s.enem > 0 && getDetail(s).areas.MT < MT_ALERT
-  const lowFreq = list.filter(isLowFreq).length
   const noPlan = list.filter(isNoPlan).length
-  const matNeed = list.filter(isMatNeed).length
+  const attNoPlan = list.filter(isAttNoPlan).length
+  const noConnect = list.filter(isNoConnect).length
 
   const turmaRows = turmas.map((t) => {
     const ts = list.filter((s) => s.turma === t.nome)
     const h = ts.filter((s) => s.risk === 'Elevado').length
     const mean = avg(ts, (s) => s.enem)
     return {
+      id: t.id,
       name: t.nome.replace('ª ', 'ª Série '), nome: t.nome, students: ts.length,
       enem: Math.round(mean), diff: Math.round(mean - NATIONAL), high: h, pct: pct(h, ts.length),
     }
@@ -100,22 +98,24 @@ export default function Overview() {
     return top ? { turma: top[0], n: top[1] } : null
   }
 
-  const turmaQS = f.turma ? '&turma=' + encodeURIComponent(f.turma) : ''
+  // /cadastro filtra a turma pelo id, e o filtro da Visão geral guarda o nome.
+  const turmaId = turmas.find((t) => t.nome === f.turma)?.id
+  const turmaQS = turmaId ? '&turma=' + encodeURIComponent(String(turmaId)) : ''
   const actions = [
     {
-      key: 'plano', tone: 'tone-red', n: noPlan, what: 'em risco elevado, sem plano de apoio',
+      key: 'plano', tone: 'tone-red', n: noPlan, what: 'em risco crítico, sem plano de apoio',
       hint: 'Ainda não há um plano definido para acompanhá-los.',
-      cta: 'Definir planos', to: `/estudantes?tab=semplano${turmaQS}`, where: topTurma(isNoPlan),
+      cta: 'Definir planos', to: `/cadastro?foco=semplano${turmaQS}`, where: topTurma(isNoPlan),
     },
     {
-      key: 'faltas', tone: 'tone-amber', n: lowFreq, what: 'com faltas recorrentes',
-      hint: 'Frequência abaixo de 75% nas últimas 4 semanas. Vale conversar sobre o que dificulta a presença.',
-      cta: 'Ver estudantes', to: `/estudantes?freqMax=75${turmaQS}`, where: topTurma(isLowFreq),
+      key: 'atencao', tone: 'tone-amber', n: attNoPlan, what: 'em atenção, sem plano de apoio',
+      hint: 'Ainda não estão em risco crítico. Um plano agora pode evitar que a situação piore.',
+      cta: 'Ver estudantes', to: `/cadastro?foco=atencaosemplano${turmaQS}`, where: topTurma(isAttNoPlan),
     },
     {
-      key: 'mat', tone: 'tone-teal', n: matNeed, what: 'precisam de reforço em matemática',
-      hint: `Estimativa de matemática abaixo de ${MT_ALERT} pts.`,
-      cta: 'Planejar reforço', to: `/estudantes?mtMax=${MT_ALERT}${turmaQS}`, where: topTurma(isMatNeed),
+      key: 'conectividade', tone: 'tone-slate', n: noConnect, what: 'em risco, sem computador ou internet',
+      hint: 'Sem acesso em casa, estudar fora da escola fica mais difícil. Vale pensar em acesso a biblioteca ou laboratório.',
+      cta: 'Ver estudantes', to: `/cadastro?foco=semconectividade${turmaQS}`, where: topTurma(isNoConnect),
     },
   ]
 
@@ -130,8 +130,8 @@ export default function Overview() {
       ['Atenção', count('Atenção')],
       ['Risco menor', count('Menor')],
       ['Risco elevado sem plano de apoio', noPlan],
-      ['Estudantes com frequência < 75%', lowFreq],
-      [`Estudantes com matemática estimada < ${MT_ALERT} pts`, matNeed],
+      ['Atenção sem plano de apoio', attNoPlan],
+      ['Em risco, sem computador ou internet', noConnect],
       [],
       ['Média nacional do ENEM (ilustrativa)', Math.round(NATIONAL)],
       [],
@@ -199,7 +199,7 @@ export default function Overview() {
             <tbody>
               {turmaRows.map((t) => (
                 <tr key={t.nome}>
-                  <td><Icon name="class" /> <Link className="turma-link" to={`/estudantes?turma=${encodeURIComponent(t.nome)}`}>{t.name}</Link></td>
+                  <td><Icon name="class" /> <Link className="turma-link" to={`/cadastro?turma=${encodeURIComponent(String(t.id))}`}>{t.name}</Link></td>
                   <td>{t.students}</td>
                   <td><DiffCell diff={t.diff} enem={t.enem} /></td>
                   <td>
@@ -237,7 +237,7 @@ export default function Overview() {
         <p className="muted small">Em ordem de prioridade. Cada botão abre a lista de estudantes já filtrada.</p>
         <div className="act-grid">
           {actions.map((a, i) => (
-            <article className={'act-card ' + a.tone} key={a.key}>
+            <article className={'act-card ' + a.tone + (a.n === 0 ? ' is-zero' : '')} key={a.key}>
               <div className="act-top">Prioridade {i + 1}</div>
               <div className="act-num">{a.n}<small>{a.n === 1 ? 'estudante' : 'estudantes'}</small></div>
               <div className="act-label">{a.what}</div>
@@ -248,7 +248,7 @@ export default function Overview() {
                   <Link className="btn sm act-cta" to={a.to}>{a.cta}</Link>
                 </>
               ) : (
-                <p className="small act-ok">Nenhum caso na seleção.</p>
+                <p className="small act-ok">✓ Nenhum caso na seleção</p>
               )}
             </article>
           ))}
