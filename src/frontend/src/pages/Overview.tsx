@@ -256,7 +256,6 @@ export default function Overview() {
       </section>
 
       <div className="notice"><Icon name="info" /> Predições são estimativas de apoio à decisão, não destinos individuais. As faixas expressam incerteza ilustrativa; a equipe escolar deve contextualizar cada sinal antes de intervir.</div>
-      <footer className="foot"><span>Dados cadastrados nesta instalação.</span><span>Farol.IA · FATEC Jacareí</span></footer>
     </main>
   )
 }

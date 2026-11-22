@@ -358,11 +358,6 @@ export default function AlunoDetalhe() {
         </dl>
       </section>
 
-      <footer className="foot">
-        <span>Cadastro individual</span>
-        <span>Farol.IA · FATEC Jacareí</span>
-      </footer>
-
       {editandoAluno && (
         <NovoEstudanteForm
           alunoEdicao={aluno}

@@ -194,10 +194,6 @@ export default function Turmas() {
       <div className="notice">
         <Icon name="info" /> Relatórios e predições são estimativas de apoio à decisão. Compartilhe apenas com a equipe pedagógica e sem associar códigos a nomes fora do sistema (LGPD).
       </div>
-      <footer className="foot">
-        <span>Dados cadastrados nesta instalação.</span>
-        <span>Farol.IA · FATEC Jacareí</span>
-      </footer>
     </main>
   )
 }
