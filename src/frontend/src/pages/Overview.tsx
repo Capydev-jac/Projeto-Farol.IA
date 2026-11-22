@@ -234,7 +234,7 @@ export default function Overview() {
 
       <section className="card">
         <h3>Onde agir agora</h3>
-        <p className="muted small">Em ordem de prioridade. Cada botão abre a lista de estudantes já filtrada.</p>
+        <p className="muted small">Estudantes a serem apoiados</p>
         <div className="act-grid">
           {actions.map((a, i) => (
             <article className={'act-card ' + a.tone + (a.n === 0 ? ' is-zero' : '')} key={a.key}>
